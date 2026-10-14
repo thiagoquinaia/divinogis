@@ -1,0 +1,14 @@
+version: '3.8'
+
+services:
+  divinogis:
+    build: .
+    container_name: divinogis
+    ports:
+      - "5001:5001"
+    volumes:
+      - ./data_cache:/app/data_cache
+      - ./exports:/app/exports
+    environment:
+      - PORT=5001
+    restart: unless-stopped

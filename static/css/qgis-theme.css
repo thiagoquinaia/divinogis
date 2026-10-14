@@ -1,0 +1,871 @@
+/* QGIS 3 Desktop Theme for Web Application */
+:root {
+  --qgis-bg: #ece9d8;
+  --qgis-panel-bg: #f5f5f5;
+  --qgis-toolbar-bg: #f0f0f0;
+  --qgis-border: #c8c8c8;
+  --qgis-border-dark: #a0a0a0;
+  --qgis-text: #222222;
+  --qgis-text-muted: #666666;
+  --qgis-accent: #2e6b9e;
+  --qgis-selection: #3388ff;
+  --qgis-hover: #e4eaf2;
+  --qgis-active-item: #cee5f2;
+  --qgis-menu-hover: #3875d7;
+  --qgis-status-bg: #ececec;
+  --qgis-font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  user-select: none;
+}
+
+body {
+  font-family: var(--qgis-font);
+  font-size: 12px;
+  color: var(--qgis-text);
+  background-color: var(--qgis-toolbar-bg);
+  overflow: hidden;
+  height: 100vh;
+  width: 100vw;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 1. QGIS Titlebar */
+.qgis-titlebar {
+  height: 28px;
+  background: linear-gradient(180deg, #e4e4e4 0%, #d4d4d4 100%);
+  border-bottom: 1px solid var(--qgis-border-dark);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 10px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #333;
+}
+
+.qgis-titlebar-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.qgis-logo {
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.qgis-titlebar-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.window-dots {
+  display: flex;
+  gap: 6px;
+}
+
+.window-dot {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  border: 1px solid rgba(0,0,0,0.15);
+}
+
+.dot-close { background-color: #ff5f56; }
+.dot-min { background-color: #ffbd2e; }
+.dot-max { background-color: #27c93f; }
+
+/* 2. Menu Bar */
+.qgis-menubar {
+  height: 24px;
+  background-color: var(--qgis-toolbar-bg);
+  border-bottom: 1px solid var(--qgis-border);
+  display: flex;
+  align-items: center;
+  padding: 0 4px;
+  font-size: 11.5px;
+}
+
+.menu-item {
+  position: relative;
+  padding: 3px 8px;
+  cursor: default;
+  border-radius: 3px;
+}
+
+.menu-item:hover, .menu-item.active {
+  background-color: var(--qgis-hover);
+  color: #000;
+}
+
+.dropdown-menu {
+  display: none;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  background: #ffffff;
+  border: 1px solid #b8b8b8;
+  box-shadow: 2px 4px 10px rgba(0,0,0,0.15);
+  min-width: 180px;
+  z-index: 5000;
+  padding: 2px 0;
+}
+
+.dropdown-menu.show {
+  display: block;
+}
+
+.dropdown-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 12px;
+  font-size: 11.5px;
+  cursor: pointer;
+}
+
+.dropdown-item:hover {
+  background-color: var(--qgis-menu-hover);
+  color: #fff;
+}
+
+.dropdown-item.disabled {
+  color: #999;
+  cursor: default;
+}
+
+.dropdown-item.disabled:hover {
+  background: transparent;
+  color: #999;
+}
+
+.dropdown-divider {
+  height: 1px;
+  background-color: #e0e0e0;
+  margin: 3px 0;
+}
+
+/* 3. Toolbars Area */
+.qgis-toolbars-container {
+  background-color: var(--qgis-toolbar-bg);
+  border-bottom: 1px solid var(--qgis-border);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  padding: 2px 6px;
+  gap: 6px;
+}
+
+.qgis-toolbar {
+  display: flex;
+  align-items: center;
+  border: 1px solid #d0d0d0;
+  background-color: #fafafa;
+  border-radius: 3px;
+  padding: 1px 3px;
+  height: 28px;
+  gap: 2px;
+}
+
+.toolbar-gripper {
+  width: 4px;
+  height: 16px;
+  border-left: 1px dotted #999;
+  border-right: 1px dotted #999;
+  margin: 0 2px 0 1px;
+  cursor: grab;
+}
+
+.tb-btn {
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  height: 24px;
+  min-width: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0 4px;
+  gap: 4px;
+  font-size: 11px;
+  color: #333;
+}
+
+.tb-btn:hover {
+  background-color: #e6eef8;
+  border-color: #a0c2e8;
+}
+
+.tb-btn.active {
+  background-color: #cbe0f8;
+  border-color: #6da2db;
+}
+
+.tb-btn.btn-primary {
+  background: linear-gradient(180deg, #4fa347 0%, #3e8837 100%);
+  color: #ffffff;
+  border-color: #2e6929;
+  font-weight: 600;
+  padding: 0 8px;
+}
+
+.tb-btn.btn-primary:hover {
+  background: linear-gradient(180deg, #5bb952 0%, #469b3e 100%);
+  border-color: #245320;
+}
+
+.tb-select {
+  height: 22px;
+  font-size: 11px;
+  border: 1px solid #b8b8b8;
+  border-radius: 2px;
+  background: #fff;
+  padding: 0 4px;
+  outline: none;
+}
+
+.tb-separator {
+  width: 1px;
+  height: 18px;
+  background-color: #d0d0d0;
+  margin: 0 3px;
+}
+
+.locator-search {
+  display: flex;
+  align-items: center;
+  background: #fff;
+  border: 1px solid #b8b8b8;
+  border-radius: 3px;
+  height: 24px;
+  padding: 0 6px;
+  margin-left: auto;
+  width: 220px;
+}
+
+.locator-search input {
+  border: none;
+  outline: none;
+  font-size: 11px;
+  width: 100%;
+  background: transparent;
+}
+
+/* 4. Main Body: Left Panel (Layers) + Map Canvas */
+.qgis-workspace {
+  flex: 1;
+  display: flex;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Left Dock: "Camadas" (Layers Panel) */
+.qgis-dock-left {
+  width: 310px;
+  min-width: 200px;
+  max-width: 500px;
+  background-color: var(--qgis-panel-bg);
+  border-right: 1px solid var(--qgis-border);
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  z-index: 1000;
+}
+
+.dock-header {
+  height: 26px;
+  background: linear-gradient(180deg, #e8e8e8 0%, #dadada 100%);
+  border-bottom: 1px solid var(--qgis-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 8px;
+  font-weight: 600;
+  font-size: 11.5px;
+}
+
+.dock-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.dock-icon-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 2px;
+  border-radius: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #555;
+}
+
+.dock-icon-btn:hover {
+  background: #ccc;
+}
+
+.layers-sub-toolbar {
+  height: 26px;
+  background-color: #f7f7f7;
+  border-bottom: 1px solid var(--qgis-border);
+  display: flex;
+  align-items: center;
+  padding: 0 4px;
+  gap: 2px;
+}
+
+.layers-filter {
+  padding: 4px 6px;
+  border-bottom: 1px solid #e2e2e2;
+  background: #fafafa;
+}
+
+.layers-filter input {
+  width: 100%;
+  height: 22px;
+  font-size: 11px;
+  padding: 0 6px;
+  border: 1px solid #ccc;
+  border-radius: 2px;
+  outline: none;
+}
+
+.layers-filter input:focus {
+  border-color: var(--qgis-accent);
+}
+
+.layers-tree {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  background: #ffffff;
+  padding: 4px 0;
+}
+
+.layer-item {
+  display: flex;
+  flex-direction: column;
+  padding: 4px 8px;
+  border-bottom: 1px solid #f2f2f2;
+  cursor: default;
+  font-size: 11.5px;
+}
+
+.layer-item:hover {
+  background-color: var(--qgis-hover);
+}
+
+.layer-item.active {
+  background-color: var(--qgis-active-item);
+  border-left: 3px solid var(--qgis-accent);
+}
+
+.layer-header-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+}
+
+.layer-checkbox {
+  cursor: pointer;
+  width: 13px;
+  height: 13px;
+}
+
+.layer-type-icon {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.layer-name {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-weight: 500;
+}
+
+.layer-quick-download {
+  opacity: 0.6;
+  cursor: pointer;
+  font-size: 11px;
+  padding: 2px 4px;
+  border-radius: 3px;
+}
+
+.layer-quick-download:hover {
+  opacity: 1;
+  background-color: #d8e5f5;
+  color: #1a56a6;
+}
+
+.layer-legend {
+  margin-top: 4px;
+  margin-left: 24px;
+  font-size: 10.5px;
+  color: var(--qgis-text-muted);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.legend-ramp-bar {
+  height: 9px;
+  width: 100%;
+  border-radius: 2px;
+  border: 1px solid rgba(0,0,0,0.2);
+  margin-bottom: 2px;
+}
+
+.legend-values {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10px;
+  font-family: monospace;
+}
+
+/* Splitter / Resizer between dock and map */
+.dock-resizer {
+  width: 4px;
+  background-color: #ddd;
+  cursor: col-resize;
+  border-right: 1px solid #bbb;
+}
+
+.dock-resizer:hover {
+  background-color: var(--qgis-accent);
+}
+
+/* Map Canvas */
+.qgis-map-canvas-container {
+  flex: 1;
+  position: relative;
+  height: 100%;
+  overflow: hidden;
+}
+
+#map {
+  width: 100%;
+  height: 100%;
+  background: #e5e3df;
+}
+
+/* Map Canvas Floating Controls / Badges */
+.map-badge-aoi {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid #4a90e2;
+  border-radius: 4px;
+  padding: 6px 14px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.18);
+  z-index: 1500;
+  display: none;
+  align-items: center;
+  gap: 12px;
+  font-size: 12px;
+  color: #222;
+}
+
+.map-badge-aoi.show {
+  display: flex;
+}
+
+.badge-btn {
+  background: #3e8837;
+  color: white;
+  border: none;
+  border-radius: 3px;
+  padding: 4px 10px;
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.badge-btn:hover {
+  background: #4ba643;
+}
+
+/* Elevation Tooltip for identify */
+.elevation-inspector-popup {
+  position: absolute;
+  background: #ffffff;
+  border: 1px solid #333;
+  border-radius: 4px;
+  padding: 6px 10px;
+  box-shadow: 2px 2px 10px rgba(0,0,0,0.3);
+  font-size: 11.5px;
+  z-index: 2000;
+  pointer-events: none;
+  display: none;
+}
+
+/* 5. Bottom Status Bar */
+.qgis-statusbar {
+  height: 22px;
+  background: var(--qgis-status-bg);
+  border-top: 1px solid var(--qgis-border);
+  display: flex;
+  align-items: center;
+  padding: 0 6px;
+  font-size: 11px;
+  color: #444;
+  justify-content: space-between;
+}
+
+.statusbar-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.status-segment {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  border-right: 1px solid #ccc;
+  padding-right: 12px;
+}
+
+.statusbar-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.epsg-pill {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 6px;
+  background: #e0e0e0;
+  border: 1px solid #bbb;
+  border-radius: 3px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.epsg-pill:hover {
+  background: #d0d0d0;
+}
+
+/* 6. Context Menu (Right Click on Layer) */
+.qgis-context-menu {
+  position: absolute;
+  background: #ffffff;
+  border: 1px solid #a8a8a8;
+  box-shadow: 3px 3px 12px rgba(0,0,0,0.2);
+  z-index: 9999;
+  min-width: 220px;
+  border-radius: 2px;
+  padding: 3px 0;
+  display: none;
+}
+
+.qgis-context-menu.show {
+  display: block;
+}
+
+.cm-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 14px;
+  font-size: 11.5px;
+  cursor: pointer;
+  color: #222;
+}
+
+.cm-item:hover {
+  background-color: var(--qgis-menu-hover);
+  color: #ffffff;
+}
+
+.cm-item.highlight-download {
+  font-weight: 600;
+  color: #1a56a6;
+}
+
+.cm-item.highlight-download:hover {
+  background-color: var(--qgis-menu-hover);
+  color: #ffffff;
+}
+
+.cm-separator {
+  height: 1px;
+  background-color: #e5e5e5;
+  margin: 3px 0;
+}
+
+/* 7. QGIS Style Dialog Modal */
+.qgis-modal-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.22);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  pointer-events: none;
+}
+
+.qgis-modal-backdrop.show {
+  display: flex;
+}
+
+.qgis-dialog {
+  background: #f0f0f0;
+  border: 1px solid #777;
+  border-radius: 4px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.35);
+  width: 540px;
+  max-width: 95vw;
+  display: flex;
+  flex-direction: column;
+  pointer-events: auto;
+  position: relative;
+}
+
+.dialog-titlebar {
+  height: 30px;
+  background: linear-gradient(180deg, #e4e4e4 0%, #cecece 100%);
+  border-bottom: 1px solid #b0b0b0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 10px;
+  font-weight: 600;
+  font-size: 12px;
+  cursor: grab;
+  user-select: none;
+  touch-action: none;
+}
+
+.dialog-titlebar:active {
+  cursor: grabbing;
+}
+
+.dialog-close-btn {
+  background: transparent;
+  border: none;
+  font-size: 16px;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.dialog-tabs {
+  display: flex;
+  background: #e4e4e4;
+  border-bottom: 1px solid #c0c0c0;
+  padding: 4px 6px 0;
+  gap: 2px;
+}
+
+.dialog-tab {
+  padding: 4px 12px;
+  cursor: pointer;
+  border-top-left-radius: 3px;
+  border-top-right-radius: 3px;
+  background: #dadada;
+  border: 1px solid #b8b8b8;
+  border-bottom: none;
+  font-size: 11px;
+}
+
+.dialog-tab.active {
+  background: #ffffff;
+  font-weight: 600;
+  border-bottom: 1px solid #ffffff;
+  margin-bottom: -1px;
+}
+
+.dialog-content {
+  background: #ffffff;
+  padding: 14px;
+  font-size: 11.5px;
+  min-height: 220px;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.dialog-footer {
+  background: #ececec;
+  border-top: 1px solid #c0c0c0;
+  padding: 8px 12px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.qgis-btn {
+  padding: 4px 14px;
+  border-radius: 3px;
+  border: 1px solid #999;
+  background: linear-gradient(180deg, #ffffff 0%, #e2e2e2 100%);
+  font-size: 11.5px;
+  cursor: pointer;
+}
+
+.qgis-btn:hover {
+  background: linear-gradient(180deg, #f7f7f7 0%, #d8d8d8 100%);
+  border-color: #777;
+}
+
+.qgis-btn.primary {
+  background: linear-gradient(180deg, #308cc6 0%, #1e6d9e 100%);
+  border-color: #1a56a6;
+  color: white;
+  font-weight: 600;
+}
+
+.qgis-btn.primary:hover {
+  background: linear-gradient(180deg, #3c9fe0 0%, #257db3 100%);
+}
+
+.prop-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.prop-table td {
+  padding: 5px 8px;
+  border-bottom: 1px solid #eee;
+}
+
+.prop-table td:first-child {
+  font-weight: 600;
+  color: #444;
+  width: 35%;
+  background: #fafafa;
+}
+
+/* 3D Viewer Modal */
+#viewer3d-container {
+  width: 100%;
+  height: 380px;
+  background: #111;
+  position: relative;
+}
+
+/* Toast notifications */
+.qgis-toast {
+  position: fixed;
+  bottom: 30px;
+  right: 20px;
+  background: #2b3a4a;
+  color: #ffffff;
+  padding: 8px 16px;
+  border-radius: 4px;
+  font-size: 12px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+  z-index: 10000;
+  display: none;
+  animation: fadeIn 0.2s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* 8. Estilos para Tabela de Atributos e Vetores */
+.attr-table-container {
+  width: 100%;
+  height: 380px;
+  overflow: auto;
+  border: 1px solid #d0d0d0;
+  background: #ffffff;
+}
+
+.attr-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+}
+
+.attr-table th {
+  position: sticky;
+  top: 0;
+  background: #e4e4e4;
+  color: #333;
+  font-weight: 600;
+  padding: 5px 8px;
+  border-right: 1px solid #ccc;
+  border-bottom: 2px solid #b0b0b0;
+  white-space: nowrap;
+  text-align: left;
+  user-select: none;
+  cursor: pointer;
+  z-index: 10;
+}
+
+.attr-table th:hover {
+  background: #d8d8d8;
+}
+
+.attr-table td {
+  padding: 4px 8px;
+  border-right: 1px solid #e8e8e8;
+  border-bottom: 1px solid #e8e8e8;
+  white-space: nowrap;
+}
+
+.attr-table tr:nth-child(even) {
+  background-color: #f9f9f9;
+}
+
+.attr-table tr:hover {
+  background-color: #eaf2fd;
+  cursor: pointer;
+}
+
+.attr-table tr.selected {
+  background-color: #cee5f2 !important;
+  color: #000;
+  font-weight: 600;
+}
+
+.attr-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 10px;
+  background: #f0f0f0;
+  border-bottom: 1px solid #d0d0d0;
+  gap: 10px;
+}
+
+.vector-swatch {
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
+  border: 2px solid;
+  display: inline-block;
+  margin-right: 4px;
+}
+

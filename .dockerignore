@@ -1,0 +1,14 @@
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.git
+.gitignore
+.env
+.DS_Store
+data_cache/*
+!data_cache/.gitkeep
+exports/*
+!exports/.gitkeep
+venv/
+.venv/
