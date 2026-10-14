@@ -86,13 +86,32 @@ def load_or_fetch_tile(lat_floor, lon_floor):
     arr = np.frombuffer(raw_bytes, dtype='>i2').reshape((3601, 3601))
     return arr
 
-def fetch_srtm_dem(min_lat, min_lon, max_lat, max_lon, colormap='terrain', blend_hillshade=True):
+def fetch_srtm_dem(min_lat=None, min_lon=None, max_lat=None, max_lon=None, colormap='terrain', blend_hillshade=True, geometry=None, feature_name=None):
     """
-    Extracts SRTM 30m for the given bounding box [min_lat, min_lon, max_lat, max_lon].
+    Extracts SRTM 30m for the given bounding box or GeoJSON geometry polygon.
     Mosaics across tiles if necessary.
+    If geometry is provided, masks pixels outside the polygon to NoData (-32768).
     Saves a GeoTIFF in exports/ and generates an RGB PNG overlay for map visualization.
     Returns metadata dict.
     """
+    geom_obj = None
+    if geometry is not None:
+        try:
+            import shapely.geometry
+            geom_obj = shapely.geometry.shape(geometry)
+            if not geom_obj.is_valid:
+                geom_obj = geom_obj.buffer(0)
+            g_min_lon, g_min_lat, g_max_lon, g_max_lat = geom_obj.bounds
+            min_lat = g_min_lat if min_lat is None else min(min_lat, g_min_lat)
+            min_lon = g_min_lon if min_lon is None else min(min_lon, g_min_lon)
+            max_lat = g_max_lat if max_lat is None else max(max_lat, g_max_lat)
+            max_lon = g_max_lon if max_lon is None else max(max_lon, g_max_lon)
+        except Exception as e:
+            raise ValueError(f"Geometria inválida da feição: {str(e)}")
+
+    if min_lat is None or min_lon is None or max_lat is None or max_lon is None:
+        raise ValueError("Coordenadas delimitadoras (bounds) não foram fornecidas.")
+
     if min_lat >= max_lat or min_lon >= max_lon:
         raise ValueError("Coordenadas inválidas: min_lat/min_lon devem ser menores que max_lat/max_lon.")
 
@@ -100,7 +119,11 @@ def fetch_srtm_dem(min_lat, min_lon, max_lat, max_lon, colormap='terrain', blend
     delta_lat = max_lat - min_lat
     delta_lon = max_lon - min_lon
     if delta_lat > 4.0 or delta_lon > 4.0:
-        raise ValueError("A área selecionada é muito grande para processamento direto (máximo 4° x 4°). Por favor selecione uma área menor.")
+        feat_info = f" ('{feature_name}')" if feature_name else ""
+        raise ValueError(
+            f"A área selecionada{feat_info} é muito extensa para processamento SRTM 30m direto "
+            f"({delta_lon:.2f}° x {delta_lat:.2f}°, máx. 4.0° x 4.0°). Sugestão: selecione um Município ou Mesorregião."
+        )
 
     # Target resolution: 1 arcsecond = 1 / 3600 degree
     res = 1.0 / 3600.0
@@ -112,8 +135,6 @@ def fetch_srtm_dem(min_lat, min_lon, max_lat, max_lon, colormap='terrain', blend
     dem_output = np.full((height, width), -32768, dtype=np.int16)
 
     # Global grid pixel coordinates
-    # Grid column: 0 at lon 0, 3600 at lon 1
-    # Grid row: 0 at lat 0, -3600 at lat 1 (so northern latitudes have negative global rows)
     grid_min_col = int(round(min_lon * 3600.0))
     grid_max_row = int(round(-max_lat * 3600.0))
 
@@ -150,7 +171,25 @@ def fetch_srtm_dem(min_lat, min_lon, max_lat, max_lon, colormap='terrain', blend
 
                 dem_output[out_r1:out_r2, out_c1:out_c2] = tile_arr[tile_r1:tile_r2, tile_c1:tile_c2]
 
-    # Calculate statistics
+    transform = from_origin(min_lon, max_lat, res, res)
+
+    # If geometry is provided, apply polygon cutline / mask
+    if geom_obj is not None:
+        try:
+            import rasterio.features
+            # invert=True: True inside shape, False outside shape
+            polygon_mask = rasterio.features.geometry_mask(
+                [geom_obj],
+                out_shape=(height, width),
+                transform=transform,
+                invert=True
+            )
+            # Mask out outside pixels to NoData
+            dem_output[~polygon_mask] = -32768
+        except Exception as e:
+            print(f"Aviso ao aplicar máscara vetorial SRTM: {e}")
+
+    # Calculate statistics based ONLY on valid terrain pixels
     valid_mask = (dem_output > -1000) & (dem_output < 9000)
     if np.any(valid_mask):
         valid_elevs = dem_output[valid_mask]
@@ -169,8 +208,7 @@ def fetch_srtm_dem(min_lat, min_lon, max_lat, max_lon, colormap='terrain', blend
     tif_path = os.path.join(EXPORTS_DIR, tif_filename)
     png_path = os.path.join(EXPORTS_DIR, png_filename)
 
-    # 1. Write GeoTIFF
-    transform = from_origin(min_lon, max_lat, res, res)
+    # 1. Write GeoTIFF with standard nodata
     with rasterio.open(
         tif_path,
         'w',
@@ -189,7 +227,7 @@ def fetch_srtm_dem(min_lat, min_lon, max_lat, max_lon, colormap='terrain', blend
 
     file_size_bytes = os.path.getsize(tif_path)
 
-    # 2. Generate visualization PNG (Hillshade + Colormap)
+    # 2. Generate visualization PNG (Hillshade + Colormap) with transparency outside cutline
     generate_dem_preview_png(dem_output, valid_mask, min_elev, max_elev, png_path, colormap, blend_hillshade)
 
     return {
@@ -220,29 +258,30 @@ def fetch_srtm_dem(min_lat, min_lon, max_lat, max_lon, colormap='terrain', blend
         "crs": "EPSG:4326 (WGS 84)",
         "file_size": file_size_bytes,
         "download_url": f"/api/download/{layer_id}",
-        "preview_url": f"/api/preview/{layer_id}"
+        "preview_url": f"/api/preview/{layer_id}",
+        "is_clipped": geom_obj is not None,
+        "feature_name": feature_name
     }
 
 def generate_dem_preview_png(dem_output, valid_mask, min_elev, max_elev, output_path, colormap='terrain', blend_hillshade=True):
     """
-    Renders shaded relief RGBA image and saves it to output_path.
+    Renders shaded relief RGBA image with transparent background outside valid mask.
     """
     height, width = dem_output.shape
     float_dem = dem_output.astype(np.float32)
 
-    # If all values are the same or flat
+    # Avoid zero division
     if max_elev <= min_elev:
         max_elev = min_elev + 1
 
-    # Choose colormap
+    # Fill invalid/nodata pixels with min_elev for smooth hillshade gradient calculation
+    if not np.all(valid_mask):
+        float_dem[~valid_mask] = float(min_elev)
+
     cmap_obj = getattr(plt.cm, colormap, plt.cm.terrain)
 
     if blend_hillshade and height > 2 and width > 2 and (max_elev - min_elev > 5):
         ls = LightSource(azdeg=315, altdeg=45)
-        # Avoid zero division
-        norm_dem = (float_dem - min_elev) / max(1.0, float(max_elev - min_elev))
-        norm_dem = np.clip(norm_dem, 0, 1)
-        
         try:
             rgba = ls.shade(
                 float_dem,
@@ -250,10 +289,13 @@ def generate_dem_preview_png(dem_output, valid_mask, min_elev, max_elev, output_
                 blend_mode='overlay',
                 vert_exag=1.5,
                 dx=30.0,
-                dy=30.0
+                dy=30.0,
+                vmin=float(min_elev),
+                vmax=float(max_elev)
             )
         except Exception:
-            # Fallback to direct colormap
+            norm_dem = (float_dem - min_elev) / max(1.0, float(max_elev - min_elev))
+            norm_dem = np.clip(norm_dem, 0, 1)
             rgba = cmap_obj(norm_dem)
     else:
         norm_dem = (float_dem - min_elev) / max(1.0, float(max_elev - min_elev))
@@ -263,7 +305,7 @@ def generate_dem_preview_png(dem_output, valid_mask, min_elev, max_elev, output_
     # Convert to 0-255 uint8 RGBA
     img_data = (rgba * 255).astype(np.uint8)
 
-    # Set invalid or nodata pixels to full transparency
+    # Set invalid or nodata pixels outside cutline to 100% transparency
     if not np.all(valid_mask):
         img_data[~valid_mask, 3] = 0
 

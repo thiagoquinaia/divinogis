@@ -24,6 +24,9 @@ let aoiStartLatLng = null;
 let scene3d = null, camera3d = null, renderer3d = null, mesh3d = null;
 let is3dInitialized = false;
 
+// Vector Feature Selection State (for automatic SRTM extraction & clipping)
+let selectedVectorFeature = null; // { feature, leafletLayer, layerId, name, geometry }
+
 // Initialize on DOM load
 document.addEventListener('DOMContentLoaded', () => {
   initMap();
@@ -405,7 +408,10 @@ function renderizarItemCamada(layer) {
           <circle cx="7" cy="8" r="1.5" fill="#f57c00"></circle>
         </svg>
       </div>
-      <span class="layer-name" title="${layer.name} (${layer.stats.min}m a ${layer.stats.max}m)">${layer.name}</span>
+      <span class="layer-name" title="${layer.name} (${layer.stats.min}m a ${layer.stats.max}m)">
+        ${layer.name}
+        ${layer.is_clipped ? '<span style="font-size:9px; background:#e3f2fd; color:#1565c0; border:1px solid #bbdefb; border-radius:2px; padding:0 3px; margin-left:3px; vertical-align:middle;" title="Recortado pela feição vetorial">✂️ Recorte</span>' : ''}
+      </span>
       <span class="layer-quick-download" title="Baixar diretamente em GeoTIFF (.tiff)" onclick="event.stopPropagation(); baixarGeoTiff('${layer.id}')">
         📥 .tiff
       </span>
@@ -976,7 +982,9 @@ async function init3DScene(layer) {
         roughness: 0.65,
         metalness: 0.05,
         flatShading: false,
-        side: THREE.DoubleSide
+        side: THREE.DoubleSide,
+        transparent: true,
+        alphaTest: 0.05
       });
 
       mesh3d = new THREE.Mesh(geom, mat);
@@ -1501,17 +1509,23 @@ function adicionarCamadaVetorial(layer) {
     onEachFeature: function(feature, fLayer) {
       featureLayers.push(fLayer);
 
-      // Popup de atributos estilo QGIS
+      // Popup de atributos estilo QGIS com botão para recorte SRTM
       const props = feature.properties || {};
       const title = props.NM_MUN || props.NM_MESO || props.NM_UF || props.NM_REGIAO || props.NOME || 'Feição IBGE';
-      let html = `<div style="font-family:'Segoe UI',sans-serif; font-size:11px; min-width:180px; max-width:280px;">`;
+      let html = `<div style="font-family:'Segoe UI',sans-serif; font-size:11px; min-width:200px; max-width:290px;">`;
       html += `<div style="font-weight:bold; color:#0d652d; border-bottom:1px solid #c2e0c6; padding-bottom:3px; margin-bottom:5px; font-size:12px;">🏛️ ${title}</div>`;
       html += `<table style="width:100%; border-collapse:collapse; font-size:11px;">`;
       for (const [k, v] of Object.entries(props)) {
         if (k.startsWith('_')) continue;
         html += `<tr style="border-bottom:1px solid #f0f0f0;"><td style="color:#666; padding:2px 4px 2px 0; font-weight:600;">${k}:</td><td style="color:#222; padding:2px 0;">${v !== null && v !== undefined ? v : '-'}</td></tr>`;
       }
-      html += `</table></div>`;
+      html += `</table>`;
+      html += `<div style="margin-top:8px; padding-top:6px; border-top:1px solid #e0e0e0;">`;
+      html += `<button class="qgis-btn primary" onclick="solicitarSRTMFeicaoSelecionada()" style="width:100%; display:flex; align-items:center; justify-content:center; gap:5px; background:linear-gradient(180deg, #1976d2 0%, #1565c0 100%); color:#fff; font-weight:600; font-size:11px; padding:5px 8px; cursor:pointer; border-radius:3px; border:1px solid #0d47a1;">`;
+      html += `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline></svg>`;
+      html += `<span>⛰️ Extrair e Recortar SRTM 30m</span>`;
+      html += `</button>`;
+      html += `</div></div>`;
       fLayer.bindPopup(html);
 
       // Eventos de hover interativo
@@ -1534,6 +1548,7 @@ function adicionarCamadaVetorial(layer) {
 
       fLayer.on('click', function(e) {
         selecionarCamadaItem(layer.id);
+        selecionarFeicaoVetorial(feature, fLayer, layer.id, title);
       });
     }
   }).addTo(map);
@@ -1966,17 +1981,10 @@ function selecionarFeicaoTabela(idx) {
     });
   }
 
-  if (targetLeafletLayer) {
-    // Realce no mapa estilo QGIS (borda amarela viva)
-    targetLeafletLayer.setStyle({
-      color: '#ff9800',
-      weight: 3.5,
-      fillColor: '#ffeb3b',
-      fillOpacity: 0.55
-    });
-    targetLeafletLayer.bringToFront();
-    highlightedMapFeatureLayer = targetLeafletLayer;
+  // Registra globalmente como a feição vetorial selecionada
+  selecionarFeicaoVetorial(feat, targetLeafletLayer, currentAttrLayerId, name);
 
+  if (targetLeafletLayer) {
     // Aproxima e centraliza no mapa
     if (targetLeafletLayer.getBounds && targetLeafletLayer.getBounds().isValid()) {
       map.fitBounds(targetLeafletLayer.getBounds(), { padding: [80, 80], maxZoom: 14 });
@@ -2029,6 +2037,171 @@ function exportarTabelaCSV() {
   URL.revokeObjectURL(url);
 
   showToast(`Tabela de atributos exportada: ${filename}`);
+}
+
+/**
+ * ==============================================================================
+ * 18. Seleção de Feição Vetorial e Recorte Automático de SRTM 30m
+ * ==============================================================================
+ */
+
+function selecionarFeicaoVetorial(feature, leafletLayer, layerId, customName) {
+  if (!feature) return;
+  const props = feature.properties || {};
+  const name = customName || props.NM_MUN || props.NM_MESO || props.NM_UF || props.NM_REGIAO || props.NOME || props.codarea || 'Feição Selecionada';
+
+  selectedVectorFeature = {
+    feature: feature,
+    leafletLayer: leafletLayer,
+    layerId: layerId,
+    name: name,
+    geometry: feature.geometry
+  };
+
+  // Se a camada Leaflet foi fornecida e difere do realce atual, atualiza o realce
+  if (leafletLayer && layersRegistry[layerId]) {
+    const reg = layersRegistry[layerId];
+    if (highlightedMapFeatureLayer && highlightedMapFeatureLayer !== leafletLayer) {
+      if (reg.layerGroup) reg.layerGroup.resetStyle(highlightedMapFeatureLayer);
+    }
+    leafletLayer.setStyle({
+      color: '#ff9800',
+      weight: 3.5,
+      fillColor: '#ffeb3b',
+      fillOpacity: 0.55
+    });
+    leafletLayer.bringToFront();
+    highlightedMapFeatureLayer = leafletLayer;
+  }
+
+  // Atualiza botão da barra de ferramentas principal
+  const btnToolbar = document.getElementById('btn-srtm-feature');
+  if (btnToolbar) {
+    btnToolbar.title = `Extrair e recortar SRTM 30m para: ${name}`;
+    btnToolbar.classList.add('active');
+    btnToolbar.style.borderColor = '#1976d2';
+    btnToolbar.style.background = '#e3f2fd';
+    btnToolbar.style.color = '#0d47a1';
+  }
+
+  // Atualiza status da tabela de atributos se visível
+  const attrStatus = document.getElementById('attr-selected-status');
+  if (attrStatus) {
+    attrStatus.innerHTML = `Feição selecionada: <strong>${name}</strong>`;
+  }
+
+  setStatusMsg(`Feição selecionada: ${name}`);
+}
+
+async function solicitarSRTMFeicaoSelecionada() {
+  // Se nenhuma feição foi selecionada explicitamente ainda, tenta pegar da camada ativa
+  if (!selectedVectorFeature || !selectedVectorFeature.geometry) {
+    if (activeLayerId && layersRegistry[activeLayerId] && layersRegistry[activeLayerId].type === 'vector') {
+      const reg = layersRegistry[activeLayerId];
+      if (reg.geojson && reg.geojson.features && reg.geojson.features.length === 1) {
+        const f0 = reg.geojson.features[0];
+        const fName = reg.metadata.name;
+        selecionarFeicaoVetorial(f0, (reg.featureLayers && reg.featureLayers[0]) || null, activeLayerId, fName);
+      } else {
+        alert("Por favor, selecione primeiro uma feição vetorial no mapa (clique sobre um município ou polígono) ou clique em uma linha na Tabela de Atributos.");
+        return;
+      }
+    } else {
+      // Procura qualquer camada vetorial carregada
+      const vecId = Object.keys(layersRegistry).find(id => layersRegistry[id].type === 'vector');
+      if (vecId) {
+        selecionarCamadaItem(vecId);
+        abrirTabelaAtributos(vecId);
+        showToast("Selecione um município ou polígono na tabela ou no mapa.");
+        return;
+      } else {
+        alert("Nenhuma camada vetorial ativa. Adicione uma malha oficial do IBGE pelo menu 'IBGE' ou botão 'Malhas IBGE'.");
+        abrirModalIBGE();
+        return;
+      }
+    }
+  }
+
+  const feat = selectedVectorFeature;
+  const colormap = document.getElementById('select-colormap').value;
+  const hillshade = document.getElementById('check-hillshade').checked;
+  const btn = document.getElementById('btn-srtm-feature');
+  const btnAttr = document.getElementById('btn-attr-srtm');
+  const oldBtnHtml = btn ? btn.innerHTML : '';
+
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = `<span style="display:inline-block; animation:spin 1s infinite linear;">⚙️</span> Recortando...`;
+  }
+  if (btnAttr) {
+    btnAttr.disabled = true;
+    btnAttr.innerHTML = `<span style="display:inline-block; animation:spin 1s infinite linear;">⚙️</span> Recortando...`;
+  }
+
+  setStatusMsg(`Baixando SRTM 30m e recortando para o contorno de ${feat.name}...`);
+  showToast(`Baixando e recortando SRTM 30m de ${feat.name}...`);
+
+  try {
+    const safeName = feat.name.replace(/[^a-zA-Z0-9_\u00C0-\u017F\s-]/g, '').trim();
+    const payload = {
+      geometry: feat.geometry,
+      feature_name: safeName,
+      colormap: colormap,
+      hillshade: hillshade
+    };
+
+    const resp = await fetch('/api/srtm', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+
+    const data = await resp.json();
+    if (!resp.ok || data.error) {
+      throw new Error(data.error || "Erro ao processar SRTM da feição.");
+    }
+
+    adicionarCamadaRaster(data.layer);
+    showToast(`SRTM 30m de "${data.layer.name}" gerado e recortado com sucesso!`);
+    setStatusMsg(`Camada ${data.layer.name} gerada com sucesso (${data.layer.stats.min}m a ${data.layer.stats.max}m).`);
+
+    // Fecha popup no mapa
+    if (map) map.closePopup();
+
+  } catch (err) {
+    console.error(err);
+    alert(`Erro ao baixar/recortar SRTM 30m para a feição selecionada:\n${err.message}`);
+    setStatusMsg("Erro no recorte SRTM.");
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = oldBtnHtml;
+    }
+    if (btnAttr) {
+      btnAttr.disabled = false;
+      btnAttr.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#0d47a1" stroke-width="2.2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg><span>⛰️ Extrair SRTM</span>`;
+    }
+  }
+}
+
+function contextSRTMFromFeature() {
+  fecharContextMenu();
+  if (selectedVectorFeature) {
+    solicitarSRTMFeicaoSelecionada();
+  } else if (activeLayerId && layersRegistry[activeLayerId] && layersRegistry[activeLayerId].type === 'vector') {
+    const reg = layersRegistry[activeLayerId];
+    if (reg.geojson && reg.geojson.features && reg.geojson.features.length === 1) {
+      const f0 = reg.geojson.features[0];
+      const fName = reg.metadata.name;
+      selecionarFeicaoVetorial(f0, (reg.featureLayers && reg.featureLayers[0]) || null, activeLayerId, fName);
+      solicitarSRTMFeicaoSelecionada();
+    } else {
+      alert("Por favor, selecione uma feição no mapa ou abra a Tabela de Atributos para escolher o município ou polígono a ser recortado.");
+      abrirTabelaAtributos(activeLayerId);
+    }
+  } else {
+    alert("Nenhuma camada vetorial selecionada.");
+  }
 }
 
 /**

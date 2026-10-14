@@ -144,9 +144,14 @@
     <!-- Barra de Processamento SRTM -->
     <div class="qgis-toolbar" title="Processamento SRTM 30m">
       <div class="toolbar-gripper"></div>
-      <button class="tb-btn btn-primary" id="btn-get-srtm" onclick="solicitarSRTM()" title="Baixar e Gerar Raster SRTM 30m da Área Selecionada">
+      <button class="tb-btn btn-primary" id="btn-get-srtm" onclick="solicitarSRTM()" title="Baixar e Gerar Raster SRTM 30m da Área Selecionada (AOI)">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-        <span>Solicitar SRTM 30m</span>
+        <span>Solicitar SRTM (AOI)</span>
+      </button>
+
+      <button class="tb-btn" id="btn-srtm-feature" onclick="solicitarSRTMFeicaoSelecionada()" title="Baixar e recortar raster SRTM 30m automaticamente para a feição vetorial selecionada no mapa ou na tabela" style="color: #0d47a1; font-weight: 600; border-color: #bbdefb; background: #f0f7ff;">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#0d47a1" stroke-width="2.2"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline></svg>
+        <span>⛰️ SRTM da Feição</span>
       </button>
 
       <span style="font-size: 11px; margin-left: 4px; color:#555;">Rampa:</span>
@@ -339,6 +344,10 @@
     </div>
 
     <!-- Ações Vetoriais (IBGE) -->
+    <div class="cm-item cm-vector-only" style="font-weight: 600; color: #0d47a1;" onclick="contextSRTMFromFeature()">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0d47a1" stroke-width="2.2"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline></svg>
+      <span>⛰️ Extrair SRTM 30m da Feição Selecionada</span>
+    </div>
     <div class="cm-item cm-vector-only" style="font-weight: 600; color: #1a56a6;" onclick="contextOpenAttributeTable()">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#1a56a6" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="3" y1="15" x2="21" y2="15"></line><line x1="9" y1="3" x2="9" y2="21"></line><line x1="15" y1="3" x2="15" y2="21"></line></svg>
       <span>Abrir Tabela de Atributos...</span>
@@ -723,8 +732,12 @@
           <input type="text" id="attr-search-input" placeholder="Digite para filtrar por qualquer campo (nome, código, sigla)..." onkeyup="filtrarTabelaAtributos(this.value)" style="flex: 1; height: 22px; font-size: 11px; padding: 0 6px; border: 1px solid #ccc; border-radius: 2px;">
         </div>
 
-        <div style="display: flex; align-items: center; gap: 10px;">
+        <div style="display: flex; align-items: center; gap: 8px;">
           <span id="attr-feature-count" style="font-size: 11px; color: #555; font-weight: 500;">Total: 0 feições</span>
+          <button class="qgis-btn" id="btn-attr-srtm" onclick="solicitarSRTMFeicaoSelecionada()" title="Baixar e recortar raster SRTM 30m automaticamente para a feição selecionada nesta tabela" style="color: #0d47a1; font-weight: 600; border-color: #90caf9; background: #e3f2fd; display: flex; align-items: center; gap: 4px;">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#0d47a1" stroke-width="2.2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+            <span>⛰️ Extrair SRTM</span>
+          </button>
           <button class="qgis-btn" onclick="exportarTabelaCSV()" title="Exportar tabela de dados para arquivo CSV">
             📄 Exportar CSV
           </button>

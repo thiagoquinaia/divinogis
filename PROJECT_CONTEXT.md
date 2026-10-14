@@ -142,7 +142,24 @@ gerador_topo3d/ (divinogis)
     - O popup cadastral com todos os atributos da feição é aberto na tela.
   - **Exportação CSV**: Botão para exportar os dados (filtrados ou completos) com codificação UTF-8 BOM (`\uFEFF`), abrindo perfeitamente com acentuação correta no Microsoft Excel e LibreOffice.
 
-### 3.7. Sistema de Janelas Flutuantes Arrastáveis (Draggable Popups)
+### 3.7. Recorte Automático de SRTM 30m por Feição Vetorial Selecionada (Polygon Cutline)
+- **Objetivo**: Permitir que o usuário selecione qualquer polígono vetorial ativo (ex: município do IBGE, mesorregião, contorno estadual ou feição customizada) e baixe o raster SRTM 30m já recortado estritamente pela geometria do polígono, com transparência total nas bordas externas.
+- **Pontos de Acionamento na Interface**:
+  1. **Popup no Mapa**: Ao clicar em qualquer município ou polígono no mapa, o popup exibe os atributos e um botão direto destacado: `[⛰️ Extrair e Recortar SRTM 30m]`.
+  2. **Barra de Ferramentas Principal**: Botão dedicado `[⛰️ SRTM da Feição]` ao lado de "Solicitar SRTM (AOI)".
+  3. **Tabela de Atributos**: Botão `[⛰️ Extrair SRTM]` na barra superior da tabela, operando sobre a linha selecionada.
+  4. **Menu de Contexto**: Opção `[⛰️ Extrair SRTM 30m da Feição Selecionada]` ao clicar com botão direito na camada vetorial.
+- **Motor de Recorte no Servidor (`srtm_service.py`)**:
+  - Aceita `geometry` (GeoJSON Polygon ou MultiPolygon) e `feature_name`.
+  - Extrai `bounds` automáticos da feição via Shapely.
+  - Baixa os blocos HGT 1°x1° necessários e compõe a matriz.
+  - Aplica máscara poligonal booleana com `rasterio.features.geometry_mask(invert=True)`.
+  - Células externas à feição recebem o valor NoData (`-32768`).
+  - Geração de imagem PNG com canal alfa transparente (`rgba[~valid_mask, 3] = 0`) para sobreposição perfeita no mapa Leaflet.
+  - Cálculo de hipsometria com `LightSource.shade(vmin=min_elev, vmax=max_elev)` preenchendo áreas inválidas com a cota base, eliminando distorções de borda.
+  - Totalmente compatível com download de GeoTIFF recortado, visualizador 3D Three.js e exportação STL para impressão 3D.
+
+### 3.8. Sistema de Janelas Flutuantes Arrastáveis (Draggable Popups)
 - Todas as janelas de diálogo (`.qgis-dialog` dentro de `.qgis-modal-backdrop`) são **arrastáveis** segurando pela barra de título cinza superior (`.dialog-titlebar`).
 - Cursor dinâmico `grab` / `grabbing`.
 - Fundo semitransparente suave com `pointer-events: none` na cortina e `pointer-events: auto` no diálogo, permitindo que o usuário arraste as janelas para a lateral e continue interagindo livremente com o mapa (pan e zoom).

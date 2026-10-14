@@ -19,22 +19,38 @@ def index():
 def request_srtm():
     try:
         data = request.get_json(force=True)
-        min_lat = float(data.get('min_lat'))
-        min_lon = float(data.get('min_lon'))
-        max_lat = float(data.get('max_lat'))
-        max_lon = float(data.get('max_lon'))
-        layer_name = data.get('name') or f"SRTM_30m_{len(SESSION_LAYERS) + 1}"
+        geometry = data.get('geometry')
+        feature_name = data.get('feature_name')
+
+        raw_min_lat = data.get('min_lat')
+        raw_min_lon = data.get('min_lon')
+        raw_max_lat = data.get('max_lat')
+        raw_max_lon = data.get('max_lon')
+
+        min_lat = float(raw_min_lat) if raw_min_lat is not None else None
+        min_lon = float(raw_min_lon) if raw_min_lon is not None else None
+        max_lat = float(raw_max_lat) if raw_max_lat is not None else None
+        max_lon = float(raw_max_lon) if raw_max_lon is not None else None
+
         colormap = data.get('colormap', 'terrain')
         hillshade = data.get('hillshade', True)
 
-        # Validate coordinates
-        if min_lat >= max_lat or min_lon >= max_lon:
-            return jsonify({'error': 'Coordenadas inválidas. min_lat/min_lon devem ser menores que max_lat/max_lon.'}), 400
+        layer_name = data.get('name')
+        if not layer_name:
+            if feature_name:
+                layer_name = f"SRTM_30m_{feature_name}"
+            else:
+                layer_name = f"SRTM_30m_{len(SESSION_LAYERS) + 1}"
 
         result = srtm_service.fetch_srtm_dem(
-            min_lat, min_lon, max_lat, max_lon,
+            min_lat=min_lat,
+            min_lon=min_lon,
+            max_lat=max_lat,
+            max_lon=max_lon,
             colormap=colormap,
-            blend_hillshade=hillshade
+            blend_hillshade=hillshade,
+            geometry=geometry,
+            feature_name=feature_name
         )
 
         result['name'] = layer_name
