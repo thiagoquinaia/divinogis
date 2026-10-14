@@ -2138,8 +2138,8 @@ async function solicitarSRTMFeicaoSelecionada() {
     btnAttr.innerHTML = `<span style="display:inline-block; animation:spin 1s infinite linear;">⚙️</span> Recortando...`;
   }
 
-  setStatusMsg(`Baixando SRTM 30m e recortando para o contorno de ${feat.name}...`);
-  showToast(`Baixando e recortando SRTM 30m de ${feat.name}...`);
+  setStatusMsg(`Baixando e recortando SRTM para ${feat.name}... (regiões amplas podem levar alguns segundos para download)`);
+  showToast(`Baixando e recortando relevo para ${feat.name}... Aguarde alguns instantes.`);
 
   try {
     const safeName = feat.name.replace(/[^a-zA-Z0-9_\u00C0-\u017F\s-]/g, '').trim();
@@ -2162,8 +2162,9 @@ async function solicitarSRTMFeicaoSelecionada() {
     }
 
     adicionarCamadaRaster(data.layer);
-    showToast(`SRTM 30m de "${data.layer.name}" gerado e recortado com sucesso!`);
-    setStatusMsg(`Camada ${data.layer.name} gerada com sucesso (${data.layer.stats.min}m a ${data.layer.stats.max}m).`);
+    const resInfo = (data.layer.dimensions && data.layer.dimensions.resolution_label) ? ` [${data.layer.dimensions.resolution_label}]` : '';
+    showToast(`SRTM de "${data.layer.name}"${resInfo} gerado e recortado com sucesso!`);
+    setStatusMsg(`Camada ${data.layer.name} gerada com sucesso (${data.layer.stats.min}m a ${data.layer.stats.max}m, resolução: ${data.layer.dimensions.approx_pixel_size_m || 30.87}m).`);
 
     // Fecha popup no mapa
     if (map) map.closePopup();

@@ -86,10 +86,11 @@ def load_or_fetch_tile(lat_floor, lon_floor):
     arr = np.frombuffer(raw_bytes, dtype='>i2').reshape((3601, 3601))
     return arr
 
-def fetch_srtm_dem(min_lat=None, min_lon=None, max_lat=None, max_lon=None, colormap='terrain', blend_hillshade=True, geometry=None, feature_name=None):
+def fetch_srtm_dem(min_lat=None, min_lon=None, max_lat=None, max_lon=None, colormap='terrain', blend_hillshade=True, geometry=None, feature_name=None, resolution='auto'):
     """
     Extracts SRTM 30m for the given bounding box or GeoJSON geometry polygon.
-    Mosaics across tiles if necessary.
+    Mosaics across tiles with multi-threaded prefetching.
+    Supports large regions (up to 22° x 22°) with intelligent adaptive resolution.
     If geometry is provided, masks pixels outside the polygon to NoData (-32768).
     Saves a GeoTIFF in exports/ and generates an RGB PNG overlay for map visualization.
     Returns metadata dict.
@@ -115,26 +116,45 @@ def fetch_srtm_dem(min_lat=None, min_lon=None, max_lat=None, max_lon=None, color
     if min_lat >= max_lat or min_lon >= max_lon:
         raise ValueError("Coordenadas inválidas: min_lat/min_lon devem ser menores que max_lat/max_lon.")
 
-    # Guard against excessively large bounding boxes (> 4 degrees)
     delta_lat = max_lat - min_lat
     delta_lon = max_lon - min_lon
-    if delta_lat > 4.0 or delta_lon > 4.0:
+    max_delta = max(delta_lat, delta_lon)
+
+    # Guarda contra áreas continentais gigantescas (> 22° x 22°, ex: continente inteiro)
+    if max_delta > 22.0:
         feat_info = f" ('{feature_name}')" if feature_name else ""
         raise ValueError(
-            f"A área selecionada{feat_info} é muito extensa para processamento SRTM 30m direto "
-            f"({delta_lon:.2f}° x {delta_lat:.2f}°, máx. 4.0° x 4.0°). Sugestão: selecione um Município ou Mesorregião."
+            f"A área selecionada{feat_info} é de escala continental ({delta_lon:.1f}° x {delta_lat:.1f}°, máx. 22.0°). "
+            f"Para melhor performance, selecione uma Mesorregião, Estado ou delimite uma Área de Interesse (AOI)."
         )
 
-    # Target resolution: 1 arcsecond = 1 / 3600 degree
-    res = 1.0 / 3600.0
+    # Resolução adaptativa inteligente:
+    # - step = 1 (~30m): para áreas até 8.0° x 8.0° (cobre 100% das mesorregiões do Brasil, como Triângulo Mineiro, e estados como SP, PR, SC, RJ, RS, etc.)
+    # - step = 2 (~60m): para áreas entre 8.0° e 14.0° (grandes estados como Bahia, Minas Gerais)
+    # - step = 3 (~90m): para áreas entre 14.0° e 22.0° (macrorregiões ou múltiplos estados)
+    step = 1
+    if resolution == '60m' or resolution == 60:
+        step = 2
+    elif resolution == '90m' or resolution == 90:
+        step = 3
+    elif resolution == 'auto' or resolution == '30m' or resolution is None:
+        if max_delta > 14.0:
+            step = 3
+        elif max_delta > 8.0:
+            step = 2
+        else:
+            step = 1
 
-    width = max(1, int(round(delta_lon * 3600.0)))
-    height = max(1, int(round(delta_lat * 3600.0)))
+    # Resolução angular em graus
+    res = (1.0 / 3600.0) * step
+
+    width = max(1, int(round(delta_lon / res)))
+    height = max(1, int(round(delta_lat / res)))
 
     # Output array
     dem_output = np.full((height, width), -32768, dtype=np.int16)
 
-    # Global grid pixel coordinates
+    # Coordenadas globais da grade SRTM 1-arcsec (3600 pixels por grau)
     grid_min_col = int(round(min_lon * 3600.0))
     grid_max_row = int(round(-max_lat * 3600.0))
 
@@ -143,53 +163,61 @@ def fetch_srtm_dem(min_lat=None, min_lon=None, max_lat=None, max_lon=None, color
     lon_min_floor = int(math.floor(min_lon))
     lon_max_floor = int(math.floor(max_lon))
 
-    # Iterate over all intersecting 1x1 degree tiles
+    # 1. Identifica quadrículas HGT necessárias e baixa em paralelo com ThreadPoolExecutor
+    tiles_to_fetch = []
+    for lat_f in range(lat_min_floor, lat_max_floor + 1):
+        for lon_f in range(lon_min_floor, lon_max_floor + 1):
+            tile_col_origin = lon_f * 3600
+            tile_row_origin = -(lat_f + 1) * 3600
+            if (tile_col_origin < grid_min_col + width * step and tile_col_origin + 3600 > grid_min_col and
+                tile_row_origin < grid_max_row + height * step and tile_row_origin + 3600 > grid_max_row):
+                tiles_to_fetch.append((lat_f, lon_f))
+
+    if tiles_to_fetch:
+        from concurrent.futures import ThreadPoolExecutor
+        num_workers = min(10, len(tiles_to_fetch))
+        with ThreadPoolExecutor(max_workers=num_workers) as executor:
+            list(executor.map(lambda p: load_or_fetch_tile(p[0], p[1]), tiles_to_fetch))
+
+    # 2. Monta o mosaico no dem_output aplicando a amostragem por step
     for lat_f in range(lat_min_floor, lat_max_floor + 1):
         for lon_f in range(lon_min_floor, lon_max_floor + 1):
             tile_col_origin = lon_f * 3600
             tile_row_origin = -(lat_f + 1) * 3600
 
-            # Compute intersection between tile and requested extent
-            c_start = max(grid_min_col, tile_col_origin)
-            c_end = min(grid_min_col + width, tile_col_origin + 3600)
+            c_min = max(0, int(math.ceil((tile_col_origin - grid_min_col) / step)))
+            c_max = min(width, int(math.ceil((tile_col_origin + 3600 - grid_min_col) / step)))
+            r_min = max(0, int(math.ceil((tile_row_origin - grid_max_row) / step)))
+            r_max = min(height, int(math.ceil((tile_row_origin + 3600 - grid_max_row) / step)))
 
-            r_start = max(grid_max_row, tile_row_origin)
-            r_end = min(grid_max_row + height, tile_row_origin + 3600)
-
-            if c_start < c_end and r_start < r_end:
+            if c_min < c_max and r_min < r_max:
                 tile_arr = load_or_fetch_tile(lat_f, lon_f)
 
-                out_c1 = c_start - grid_min_col
-                out_c2 = c_end - grid_min_col
-                out_r1 = r_start - grid_max_row
-                out_r2 = r_end - grid_max_row
+                tile_c_start = (grid_min_col + c_min * step) - tile_col_origin
+                tile_c_end = (grid_min_col + (c_max - 1) * step) - tile_col_origin + 1
+                tile_r_start = (grid_max_row + r_min * step) - tile_row_origin
+                tile_r_end = (grid_max_row + (r_max - 1) * step) - tile_row_origin + 1
 
-                tile_c1 = c_start - tile_col_origin
-                tile_c2 = c_end - tile_col_origin
-                tile_r1 = r_start - tile_row_origin
-                tile_r2 = r_end - tile_row_origin
-
-                dem_output[out_r1:out_r2, out_c1:out_c2] = tile_arr[tile_r1:tile_r2, tile_c1:tile_c2]
+                dem_output[r_min:r_max, c_min:c_max] = tile_arr[tile_r_start:tile_r_end:step, tile_c_start:tile_c_end:step]
 
     transform = from_origin(min_lon, max_lat, res, res)
 
-    # If geometry is provided, apply polygon cutline / mask
+    # 3. Se houver geometria, aplica máscara poligonal exata
     if geom_obj is not None:
         try:
             import rasterio.features
-            # invert=True: True inside shape, False outside shape
+            # invert=True: True dentro da geometria, False fora
             polygon_mask = rasterio.features.geometry_mask(
                 [geom_obj],
                 out_shape=(height, width),
                 transform=transform,
                 invert=True
             )
-            # Mask out outside pixels to NoData
             dem_output[~polygon_mask] = -32768
         except Exception as e:
             print(f"Aviso ao aplicar máscara vetorial SRTM: {e}")
 
-    # Calculate statistics based ONLY on valid terrain pixels
+    # 4. Estatísticas de elevação baseadas nos dados válidos
     valid_mask = (dem_output > -1000) & (dem_output < 9000)
     if np.any(valid_mask):
         valid_elevs = dem_output[valid_mask]
@@ -201,14 +229,14 @@ def fetch_srtm_dem(min_lat=None, min_lon=None, max_lat=None, max_lon=None, color
         max_elev = 0
         mean_elev = 0.0
 
-    # Layer IDs and file paths
+    # Layer IDs e nomes de arquivo
     layer_id = f"dem_{int(time.time())}_{uuid.uuid4().hex[:6]}"
     tif_filename = f"{layer_id}.tif"
     png_filename = f"{layer_id}.png"
     tif_path = os.path.join(EXPORTS_DIR, tif_filename)
     png_path = os.path.join(EXPORTS_DIR, png_filename)
 
-    # 1. Write GeoTIFF with standard nodata
+    # 5. Salva GeoTIFF com compressão Deflate
     with rasterio.open(
         tif_path,
         'w',
@@ -227,8 +255,21 @@ def fetch_srtm_dem(min_lat=None, min_lon=None, max_lat=None, max_lon=None, color
 
     file_size_bytes = os.path.getsize(tif_path)
 
-    # 2. Generate visualization PNG (Hillshade + Colormap) with transparency outside cutline
-    generate_dem_preview_png(dem_output, valid_mask, min_elev, max_elev, png_path, colormap, blend_hillshade)
+    # 6. Gera imagem de pré-visualização PNG (downsampled se maior que 2400px para fluidez e estabilidade)
+    max_preview_dim = 2400
+    max_dim = max(height, width)
+    if max_dim > max_preview_dim:
+        preview_step = int(math.ceil(max_dim / max_preview_dim))
+        dem_preview = dem_output[::preview_step, ::preview_step]
+        valid_preview = valid_mask[::preview_step, ::preview_step]
+    else:
+        dem_preview = dem_output
+        valid_preview = valid_mask
+
+    generate_dem_preview_png(dem_preview, valid_preview, min_elev, max_elev, png_path, colormap, blend_hillshade)
+
+    approx_m = round(30.87 * step, 1)
+    res_label = "30m (Alta Resolução SRTM)" if step == 1 else f"{approx_m}m (Adaptado p/ Grande Escala)"
 
     return {
         "id": layer_id,
@@ -253,7 +294,9 @@ def fetch_srtm_dem(min_lat=None, min_lon=None, max_lat=None, max_lon=None, color
             "width": width,
             "height": height,
             "pixel_size_deg": res,
-            "approx_pixel_size_m": 30.87
+            "approx_pixel_size_m": approx_m,
+            "step": step,
+            "resolution_label": res_label
         },
         "crs": "EPSG:4326 (WGS 84)",
         "file_size": file_size_bytes,

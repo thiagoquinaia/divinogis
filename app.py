@@ -34,6 +34,7 @@ def request_srtm():
 
         colormap = data.get('colormap', 'terrain')
         hillshade = data.get('hillshade', True)
+        resolution = data.get('resolution', 'auto')
 
         layer_name = data.get('name')
         if not layer_name:
@@ -50,7 +51,8 @@ def request_srtm():
             colormap=colormap,
             blend_hillshade=hillshade,
             geometry=geometry,
-            feature_name=feature_name
+            feature_name=feature_name,
+            resolution=resolution
         )
 
         result['name'] = layer_name

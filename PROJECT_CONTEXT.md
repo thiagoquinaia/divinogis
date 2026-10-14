@@ -150,13 +150,17 @@ gerador_topo3d/ (divinogis)
   3. **Tabela de Atributos**: Botão `[⛰️ Extrair SRTM]` na barra superior da tabela, operando sobre a linha selecionada.
   4. **Menu de Contexto**: Opção `[⛰️ Extrair SRTM 30m da Feição Selecionada]` ao clicar com botão direito na camada vetorial.
 - **Motor de Recorte no Servidor (`srtm_service.py`)**:
-  - Aceita `geometry` (GeoJSON Polygon ou MultiPolygon) e `feature_name`.
+  - Aceita `geometry` (GeoJSON Polygon ou MultiPolygon), `feature_name` e `resolution` ('auto', '30m', '60m', '90m').
   - Extrai `bounds` automáticos da feição via Shapely.
-  - Baixa os blocos HGT 1°x1° necessários e compõe a matriz.
+  - **Download Paralelo Concorrente (`ThreadPoolExecutor`)**: Baixa as quadrículas HGT em paralelo com até 10 threads, acelerando o download de áreas extensas em até 8x.
+  - **Resolução Adaptativa Inteligente (Suporte a Grandes Áreas)**:
+    - Áreas de até **8.0° x 8.0°** (ex: Triângulo Mineiro de 90.721 km², 5.43° x 2.52°, e 100% das mesorregiões e estados médios): processamento a **30m nativo (SRTM 1-arcsec)** com total fidelidade topográfica.
+    - Áreas de **8.0° a 14.0°** (grandes estados como Bahia e Minas Gerais): resolução adaptada automaticamente para 60m (2-arcsec).
+    - Áreas de **14.0° a 22.0°**: resolução adaptada para 90m (3-arcsec).
+  - **Geração Otimizada de Visualização PNG**: Imagens de pré-visualização para o Leaflet são sub-amostradas para caber em 2400 pixels, garantindo geração em menos de 1 segundo e evitando estouro de memória no navegador e no Pillow.
   - Aplica máscara poligonal booleana com `rasterio.features.geometry_mask(invert=True)`.
   - Células externas à feição recebem o valor NoData (`-32768`).
   - Geração de imagem PNG com canal alfa transparente (`rgba[~valid_mask, 3] = 0`) para sobreposição perfeita no mapa Leaflet.
-  - Cálculo de hipsometria com `LightSource.shade(vmin=min_elev, vmax=max_elev)` preenchendo áreas inválidas com a cota base, eliminando distorções de borda.
   - Totalmente compatível com download de GeoTIFF recortado, visualizador 3D Three.js e exportação STL para impressão 3D.
 
 ### 3.8. Sistema de Janelas Flutuantes Arrastáveis (Draggable Popups)
