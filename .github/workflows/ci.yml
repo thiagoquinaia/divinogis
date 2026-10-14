@@ -1,0 +1,42 @@
+name: CI - Integridade e Qualidade de Código
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  validate:
+    name: Validação de Sintaxe e Dependências
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout do Repositório
+        uses: actions/checkout@v4
+
+      - name: Configurar Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Configurar Node.js (Validação de JS)
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Validar Sintaxe dos Arquivos Python
+        run: |
+          python3 -m py_compile app.py srtm_service.py stl_service.py ibge_service.py
+          echo "✓ Todos os scripts Python compilaram sem erros de sintaxe!"
+
+      - name: Validar Sintaxe do JavaScript Cliente
+        run: |
+          node -c static/js/app.js
+          echo "✓ Script JavaScript validado com sucesso!"
+
+      - name: Instalação e Teste das Dependências
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+          python3 -c "import flask, rasterio, geopandas, shapely, scipy, matplotlib, PIL, pyproj; print('✓ Todas as bibliotecas geospaciais foram importadas com sucesso!')"
