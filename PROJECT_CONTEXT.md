@@ -186,6 +186,20 @@ gerador_topo3d/ (divinogis)
   - Exportação de tabela de atributos para CSV (`exportarTabelaCSV`).
   - Download de GeoTIFF georreferenciado (`baixarGeoTiff`).
 
+### 3.10. Versão Portátil para Pendrive (Windows 64-bit)
+- **Script de Construção**: `build_portable_win64.py`
+- **Arquivo de Distribuição**: `DivinoGIS_Portable_Win64.zip` (~142 MB compactado).
+- **Arquitetura Autocontida**:
+  - Python 3.11.9 Embeddable oficial (`runtime/`).
+  - Todas as 36 bibliotecas em formato Wheel Windows x64 pré-extraídas em `runtime/Lib/site-packages/` com suporte completo a GDAL/GEOS e PROJ (`proj.db`).
+  - DLLs C++ do runtime (`msvcp140.dll`, `vcruntime140.dll`, `vcruntime140_1.dll`) instaladas para rodar até em computadores sem o Microsoft Visual C++ Redistributable pré-instalado.
+  - `python311._pth` configurado para descoberta automática de pacotes e diretório raiz.
+- **Inicializadores Inclusos**:
+  - `DivinoGIS.bat` / `Iniciar_DivinoGIS.bat`: Inicia o motor e abre o navegador padrão automaticamente em `http://localhost:5001`.
+  - `Iniciar_Silencioso.vbs`: Executa a aplicação sem manter janela preta de console aberta na tela.
+  - `Encerrar_DivinoGIS.bat`: Finaliza o processo Python limpo sem deixar rastros no computador hospedeiro.
+  - `COMO_USAR_NO_PENDRIVE.txt`: Manual didático de instruções passo a passo.
+
 ---
 
 ## 🌐 4. Rotas da API REST (`app.py`)
