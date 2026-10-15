@@ -169,6 +169,23 @@ gerador_topo3d/ (divinogis)
 - Fundo semitransparente suave com `pointer-events: none` na cortina e `pointer-events: auto` no diálogo, permitindo que o usuário arraste as janelas para a lateral e continue interagindo livremente com o mapa (pan e zoom).
 - Limites automáticos para não deixar as janelas saírem da área visível da tela.
 
+### 3.9. Barra de Progresso Padronizada no Rodapé (Estilo QGIS Desktop)
+- **Localização**: Embutida diretamente na barra de status inferior (`footer.qgis-statusbar`), posicionada discretamente entre as coordenadas/escala à esquerda e a pílula de CRS/Renderizador à direita.
+- **Design e Fidelidade Visual QGIS**:
+  - Ícone de engrenagem giratória animada (`⚙️`).
+  - Rótulo descritivo com truncamento elíptico seguro (`.qgis-progress-text`).
+  - Trilho com borda cinza clássica (`.qgis-progressbar-track`) e preenchimento animado (`.qgis-progressbar-fill`).
+  - Animação com listras diagonais azuis em movimento contínuo (`repeating-linear-gradient` com `@keyframes qgisProgressStripe`), reproduzindo exatamente o comportamento do gerenciador de tarefas do Qt / QGIS Desktop 3.
+  - Ao finalizar com sucesso, a barra adota a cor verde sólida (`#5bb952`), exibe `100% Concluído`, permanece visível por 1.4s para fornecer feedback visual positivo e oculta-se suavemente.
+- **Operações Integradas com Progresso Visual**:
+  - Processamento e mosaico de AOI SRTM 30m (`solicitarSRTM`).
+  - Download e recorte poligonal por feição selecionada (`solicitarSRTMFeicaoSelecionada`).
+  - Carregamento de malhas vetoriais do IBGE (`adicionarMalhaIBGE`).
+  - Reprojeção e exportação vetorial para GPKG, KML, GeoJSON e Shapefile (`executarExportacaoVetorial`).
+  - Geração de modelo 3D sólido manifold STL para impressão (`executarExportacaoSTL`).
+  - Exportação de tabela de atributos para CSV (`exportarTabelaCSV`).
+  - Download de GeoTIFF georreferenciado (`baixarGeoTiff`).
+
 ---
 
 ## 🌐 4. Rotas da API REST (`app.py`)

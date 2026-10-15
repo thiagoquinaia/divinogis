@@ -311,7 +311,7 @@ async function solicitarSRTM() {
 
   btn.disabled = true;
   btn.innerHTML = `<span style="display:inline-block; animation:spin 1s infinite linear;">⚙️</span> Processando...`;
-  setStatusMsg("Baixando dados SRTM 30m e gerando GeoTIFF...");
+  simularProgressoPasso("Baixando dados SRTM 30m e gerando GeoTIFF...", 3500);
   showToast("Consultando NASA SRTM 30m na nuvem...");
 
   try {
@@ -340,12 +340,12 @@ async function solicitarSRTM() {
     // Camada gerada com sucesso!
     adicionarCamadaRaster(data.layer);
     showToast(`Camada "${data.layer.name}" adicionada ao painel de camadas! Clique com o botão direito nela para baixar em .tiff`);
-    setStatusMsg(`Pronto. Camada ${data.layer.name} gerada com sucesso (${data.layer.stats.min}m a ${data.layer.stats.max}m).`);
+    finalizarProgresso(`Pronto. Camada ${data.layer.name} gerada com sucesso (${data.layer.stats.min}m a ${data.layer.stats.max}m).`);
 
   } catch (err) {
     console.error(err);
     alert(`Erro ao solicitar SRTM 30m: ${err.message}`);
-    setStatusMsg("Erro no processamento.");
+    cancelarProgresso("Erro ao processar SRTM.");
   } finally {
     btn.disabled = false;
     btn.innerHTML = `
@@ -591,6 +591,7 @@ function baixarGeoTiff(layerId) {
   if (!layer) return;
 
   const downloadUrl = `/api/download/${layerId}.tif`;
+  iniciarProgresso(`Baixando GeoTIFF: ${layer.metadata.name}.tif ...`, 80);
   showToast(`Baixando GeoTIFF: ${layer.metadata.name}.tif ...`);
 
   // Dispara o download nativo no navegador
@@ -601,7 +602,7 @@ function baixarGeoTiff(layerId) {
   a.click();
   document.body.removeChild(a);
 
-  setStatusMsg(`Download do arquivo GeoTIFF iniciado: ${layer.metadata.name}.tif`);
+  finalizarProgresso(`Pronto. Download do GeoTIFF iniciado: ${layer.metadata.name}.tif`);
 }
 
 function baixarCamadaAtivaTiff() {
@@ -1110,6 +1111,122 @@ function setStatusMsg(msg) {
   if (el) el.innerText = msg;
 }
 
+/**
+ * ==============================================================================
+ * Sistema Padronizado de Barra de Progresso QGIS no Rodapé
+ * ==============================================================================
+ */
+let progressInterval = null;
+
+function iniciarProgresso(texto, modo = 'indeterminate') {
+  const barContainer = document.getElementById('qgis-progress-widget');
+  const barFill = document.getElementById('qgis-progress-fill');
+  const barLabel = document.getElementById('qgis-progress-text');
+  const statusMsg = document.getElementById('status-msg');
+
+  if (progressInterval) {
+    clearInterval(progressInterval);
+    progressInterval = null;
+  }
+
+  if (barContainer) {
+    barContainer.style.display = 'flex';
+  }
+  if (barLabel) {
+    barLabel.innerText = texto || 'Processando...';
+  }
+  if (statusMsg) {
+    statusMsg.innerText = texto || 'Processando...';
+    statusMsg.style.color = '#1565c0';
+  }
+
+  if (modo === 'indeterminate') {
+    if (barFill) {
+      barFill.classList.add('striped-animated');
+      barFill.style.width = '100%';
+    }
+  } else {
+    atualizarProgresso(typeof modo === 'number' ? modo : 10, texto);
+  }
+}
+
+function atualizarProgresso(porcentagem, texto) {
+  const barContainer = document.getElementById('qgis-progress-widget');
+  const barFill = document.getElementById('qgis-progress-fill');
+  const barLabel = document.getElementById('qgis-progress-text');
+  const statusMsg = document.getElementById('status-msg');
+
+  if (barContainer) barContainer.style.display = 'flex';
+  if (barFill) {
+    barFill.classList.remove('striped-animated');
+    barFill.style.width = `${Math.min(100, Math.max(0, porcentagem))}%`;
+  }
+  const pctStr = `${Math.round(porcentagem)}%`;
+  if (barLabel) {
+    barLabel.innerText = texto ? `${texto} (${pctStr})` : pctStr;
+  }
+  if (texto && statusMsg) {
+    statusMsg.innerText = texto;
+  }
+}
+
+function simularProgressoPasso(texto, duracaoAproxMs = 3500) {
+  iniciarProgresso(texto, 12);
+  let atual = 12;
+  const intervaloMs = 120;
+  const incremento = (88 - 12) / (duracaoAproxMs / intervaloMs);
+
+  progressInterval = setInterval(() => {
+    atual = Math.min(90, atual + incremento);
+    atualizarProgresso(atual, texto);
+  }, intervaloMs);
+}
+
+function finalizarProgresso(msgSucesso = 'Pronto') {
+  if (progressInterval) {
+    clearInterval(progressInterval);
+    progressInterval = null;
+  }
+
+  const barContainer = document.getElementById('qgis-progress-widget');
+  const barFill = document.getElementById('qgis-progress-fill');
+  const barLabel = document.getElementById('qgis-progress-text');
+  const statusMsg = document.getElementById('status-msg');
+
+  if (barFill) {
+    barFill.classList.remove('striped-animated');
+    barFill.style.width = '100%';
+  }
+  if (barLabel) {
+    barLabel.innerText = '100% Concluído';
+  }
+  if (statusMsg) {
+    statusMsg.innerText = msgSucesso;
+    statusMsg.style.color = '#2e6929';
+  }
+
+  setTimeout(() => {
+    if (!progressInterval && barContainer) {
+      barContainer.style.display = 'none';
+      if (barFill) barFill.style.width = '0%';
+    }
+  }, 1400);
+}
+
+function cancelarProgresso(msgErro = 'Operação cancelada.') {
+  if (progressInterval) {
+    clearInterval(progressInterval);
+    progressInterval = null;
+  }
+  const barContainer = document.getElementById('qgis-progress-widget');
+  const statusMsg = document.getElementById('status-msg');
+  if (barContainer) barContainer.style.display = 'none';
+  if (statusMsg) {
+    statusMsg.innerText = msgErro;
+    statusMsg.style.color = '#c62828';
+  }
+}
+
 function showToast(msg) {
   const toast = document.getElementById('qgis-toast');
   toast.innerText = msg;
@@ -1306,6 +1423,7 @@ async function executarExportacaoSTL() {
   btn.disabled = true;
   btn.innerHTML = `<span style="display:inline-block; animation:spin 1s infinite linear;">⚙️</span> Gerando STL...`;
   statusMsg.innerHTML = `<span style="color: #d84315; font-weight: bold;">Gerando malha sólida manifold e calculando normais...</span>`;
+  simularProgressoPasso("Construindo malha 3D sólida manifold (STL)...", 3000);
   showToast("Processando modelo STL para impressão 3D...");
 
   try {
@@ -1338,12 +1456,13 @@ async function executarExportacaoSTL() {
 
     statusMsg.innerHTML = `<span style="color: #2e7d32; font-weight: bold;">✓ Sucesso! ${data.metadata.triangles_count.toLocaleString()} triângulos (${data.metadata.file_size_kb} KB).</span>`;
     showToast(`Modelo STL baixado: ${data.filename}`);
-    setStatusMsg(`Arquivo STL gerado: ${data.metadata.width_mm}mm × ${data.metadata.length_mm}mm × ${data.metadata.total_height_mm}mm`);
+    finalizarProgresso(`Pronto. STL gerado: ${data.metadata.width_mm}mm × ${data.metadata.length_mm}mm × ${data.metadata.total_height_mm}mm`);
 
   } catch (err) {
     console.error(err);
     alert(`Erro ao exportar STL: ${err.message}`);
     statusMsg.innerHTML = `<span style="color: #c62828;">Erro: ${err.message}</span>`;
+    cancelarProgresso("Erro ao gerar STL.");
   } finally {
     btn.disabled = false;
     btn.innerHTML = `📥 Gerar e Baixar .STL`;
@@ -1442,7 +1561,7 @@ async function adicionarMalhaIBGE(type, uf) {
   const ufParam = uf ? `&uf=${encodeURIComponent(uf)}` : '';
   const url = `/api/ibge/mesh?type=${encodeURIComponent(type)}${ufParam}`;
 
-  setStatusMsg(`Conectando à API do IBGE (${type.toUpperCase()}${uf ? ' - ' + uf : ''})...`);
+  simularProgressoPasso(`Carregando malha do IBGE (${type.toUpperCase()}${uf ? ' - ' + uf : ''})...`, 2500);
   showToast(`Baixando malha oficial do IBGE...`);
 
   try {
@@ -1458,12 +1577,12 @@ async function adicionarMalhaIBGE(type, uf) {
     fecharModalIBGE();
 
     showToast(`Camada "${data.layer.name}" adicionada com ${data.layer.feature_count} feições!`);
-    setStatusMsg(`Camada vetorial ${data.layer.name} carregada com sucesso (${data.layer.feature_count} feições).`);
+    finalizarProgresso(`Pronto. Camada ${data.layer.name} carregada (${data.layer.feature_count} feições).`);
 
   } catch (err) {
     console.error(err);
     alert(`Erro ao carregar malha do IBGE: ${err.message}`);
-    setStatusMsg("Erro ao carregar dados do IBGE.");
+    cancelarProgresso("Erro ao carregar dados do IBGE.");
   } finally {
     if (loadingStatus) loadingStatus.style.display = 'none';
     if (btnAdd) {
@@ -1754,6 +1873,7 @@ async function executarExportacaoVetorial() {
     statusEl.style.color = '#1a56a6';
     statusEl.innerText = `Processando geometrias e reprojetando para ${targetCrs}...`;
   }
+  simularProgressoPasso(`Exportando vetor para ${format.toUpperCase()} (${targetCrs})...`, 2500);
   showToast(`Exportando para ${format.toUpperCase()} (${targetCrs})...`);
 
   try {
@@ -1799,13 +1919,14 @@ async function executarExportacaoVetorial() {
     document.body.removeChild(a);
 
     showToast(`Arquivo vetorial baixado: ${data.filename}`);
-    setStatusMsg(`Exportação concluída: ${data.filename} (${data.feature_count} feições, SRC ${targetCrs}).`);
+    finalizarProgresso(`Pronto. Arquivo ${data.filename} exportado (${data.feature_count} feições, SRC ${targetCrs}).`);
 
     fecharModalExportVector();
 
   } catch (err) {
     console.error(err);
     alert(`Erro na exportação vetorial: ${err.message}`);
+    cancelarProgresso("Erro na exportação vetorial.");
     if (statusEl) {
       statusEl.style.color = '#c62828';
       statusEl.innerText = `Erro: ${err.message}`;
@@ -2027,6 +2148,7 @@ function exportarTabelaCSV() {
 
   const reg = layersRegistry[currentAttrLayerId];
   const filename = (reg ? reg.metadata.name.replace(/[^a-zA-Z0-9_-]/g, '_').toLowerCase() : 'ibge') + '_atributos.csv';
+  iniciarProgresso(`Exportando tabela CSV (${filename})...`, 80);
 
   const a = document.createElement('a');
   a.href = url;
@@ -2037,6 +2159,7 @@ function exportarTabelaCSV() {
   URL.revokeObjectURL(url);
 
   showToast(`Tabela de atributos exportada: ${filename}`);
+  finalizarProgresso(`Pronto. Tabela CSV exportada: ${filename}`);
 }
 
 /**
@@ -2138,7 +2261,7 @@ async function solicitarSRTMFeicaoSelecionada() {
     btnAttr.innerHTML = `<span style="display:inline-block; animation:spin 1s infinite linear;">⚙️</span> Recortando...`;
   }
 
-  setStatusMsg(`Baixando e recortando SRTM para ${feat.name}... (regiões amplas podem levar alguns segundos para download)`);
+  simularProgressoPasso(`Recortando relevo SRTM para ${feat.name}...`, 4500);
   showToast(`Baixando e recortando relevo para ${feat.name}... Aguarde alguns instantes.`);
 
   try {
@@ -2164,7 +2287,7 @@ async function solicitarSRTMFeicaoSelecionada() {
     adicionarCamadaRaster(data.layer);
     const resInfo = (data.layer.dimensions && data.layer.dimensions.resolution_label) ? ` [${data.layer.dimensions.resolution_label}]` : '';
     showToast(`SRTM de "${data.layer.name}"${resInfo} gerado e recortado com sucesso!`);
-    setStatusMsg(`Camada ${data.layer.name} gerada com sucesso (${data.layer.stats.min}m a ${data.layer.stats.max}m, resolução: ${data.layer.dimensions.approx_pixel_size_m || 30.87}m).`);
+    finalizarProgresso(`Pronto. Relevo de ${feat.name} recortado (${data.layer.stats.min}m a ${data.layer.stats.max}m, resolução: ${data.layer.dimensions.approx_pixel_size_m || 30.87}m).`);
 
     // Fecha popup no mapa
     if (map) map.closePopup();
@@ -2172,7 +2295,7 @@ async function solicitarSRTMFeicaoSelecionada() {
   } catch (err) {
     console.error(err);
     alert(`Erro ao baixar/recortar SRTM 30m para a feição selecionada:\n${err.message}`);
-    setStatusMsg("Erro no recorte SRTM.");
+    cancelarProgresso("Erro no recorte SRTM.");
   } finally {
     if (btn) {
       btn.disabled = false;
