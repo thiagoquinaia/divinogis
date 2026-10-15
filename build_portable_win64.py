@@ -25,47 +25,46 @@ def main():
     print("  Construindo DivinoGIS Portable (Windows 64-bit)")
     print("=" * 60)
 
-    # 1. Limpa diretório de saída anterior se existir
-    if DIST_DIR.exists():
-        print(f"-> Removendo build anterior em: {DIST_DIR}")
-        shutil.rmtree(DIST_DIR)
-    
-    SITE_PACKAGES_DIR.mkdir(parents=True, exist_ok=True)
+    # 1. Prepara diretórios de dados e runtime
     (DIST_DIR / "data_cache" / "hgt").mkdir(parents=True, exist_ok=True)
     (DIST_DIR / "data_cache" / "ibge").mkdir(parents=True, exist_ok=True)
     (DIST_DIR / "exports").mkdir(parents=True, exist_ok=True)
 
-    # 2. Extrai Python Embeddable 3.11.9
-    embed_zip = WHEELS_CACHE / "python-3.11.9-embed-amd64.zip"
-    if not embed_zip.exists():
-        print(f"ERRO: {embed_zip} não encontrado!")
-        sys.exit(1)
-        
-    print(f"-> Extraindo Python 3.11.9 Embeddable para: {RUNTIME_DIR}")
-    with zipfile.ZipFile(embed_zip, 'r') as z:
-        z.extractall(RUNTIME_DIR)
-
-    # 3. Extrai todas as Wheels para Lib/site-packages
-    wheels = sorted(glob.glob(str(WHEELS_CACHE / "*.whl")))
-    print(f"-> Extraindo {len(wheels)} bibliotecas (wheels Windows x64) para site-packages...")
+    runtime_exists = (RUNTIME_DIR / "python.exe").exists() and (SITE_PACKAGES_DIR).exists()
     
-    msvcp140_found = None
-    for whl in wheels:
-        whl_name = Path(whl).name
-        print(f"   [+] {whl_name}")
-        with zipfile.ZipFile(whl, 'r') as z:
-            for member in z.infolist():
-                # Ignora pastas __pycache__ desnecessárias
-                if "__pycache__" in member.filename:
-                    continue
-                z.extract(member, SITE_PACKAGES_DIR)
-                if "msvcp140" in member.filename.lower() and member.filename.lower().endswith(".dll"):
-                    msvcp140_found = SITE_PACKAGES_DIR / member.filename
+    if not runtime_exists:
+        SITE_PACKAGES_DIR.mkdir(parents=True, exist_ok=True)
+        # 2. Extrai Python Embeddable 3.11.9
+        embed_zip = WHEELS_CACHE / "python-3.11.9-embed-amd64.zip"
+        if not embed_zip.exists():
+            print(f"ERRO: {embed_zip} não encontrado!")
+            sys.exit(1)
+            
+        print(f"-> Extraindo Python 3.11.9 Embeddable para: {RUNTIME_DIR}")
+        with zipfile.ZipFile(embed_zip, 'r') as z:
+            z.extractall(RUNTIME_DIR)
 
-    # Copia msvcp140.dll para a pasta do runtime (junto do python.exe)
-    if msvcp140_found and msvcp140_found.exists():
-        print(f"-> Instalando DLL msvcp140.dll em {RUNTIME_DIR}...")
-        shutil.copy2(msvcp140_found, RUNTIME_DIR / "msvcp140.dll")
+        # 3. Extrai todas as Wheels para Lib/site-packages
+        wheels = sorted(glob.glob(str(WHEELS_CACHE / "*.whl")))
+        print(f"-> Extraindo {len(wheels)} bibliotecas (wheels Windows x64) para site-packages...")
+        
+        msvcp140_found = None
+        for whl in wheels:
+            whl_name = Path(whl).name
+            print(f"   [+] {whl_name}")
+            with zipfile.ZipFile(whl, 'r') as z:
+                for member in z.infolist():
+                    if "__pycache__" in member.filename:
+                        continue
+                    z.extract(member, SITE_PACKAGES_DIR)
+                    if "msvcp140" in member.filename.lower() and member.filename.lower().endswith(".dll"):
+                        msvcp140_found = SITE_PACKAGES_DIR / member.filename
+
+        if msvcp140_found and msvcp140_found.exists():
+            print(f"-> Instalando DLL msvcp140.dll em {RUNTIME_DIR}...")
+            shutil.copy2(msvcp140_found, RUNTIME_DIR / "msvcp140.dll")
+    else:
+        print("-> Runtime Python 3.11.9 Embeddable e bibliotecas Windows x64 existentes detectados. Reutilizando...")
 
     # 4. Configura python311._pth para carregar site-packages e a raiz da aplicação
     pth_file = RUNTIME_DIR / "python311._pth"
@@ -83,6 +82,7 @@ def main():
     print("-> Copiando código-fonte e recursos estáticos do DivinoGIS...")
     app_files = [
         "app.py",
+        "net_utils.py",
         "srtm_service.py",
         "ibge_service.py",
         "stl_service.py",
@@ -122,11 +122,14 @@ echo.
 echo =====================================================================
 echo.
 
-:: Define caminhos de busca para PROJ e GDAL
+:: Define caminhos de busca para PROJ, GDAL e Certificados SSL
 set "PYTHONHOME=%~dp0runtime"
 set "PYTHONPATH=%~dp0;%~dp0runtime\Lib\site-packages"
 set "PROJ_LIB=%~dp0runtime\Lib\site-packages\pyproj\proj_dir\share\proj"
 set "GDAL_DATA=%~dp0runtime\Lib\site-packages\rasterio\gdal_data"
+set "SSL_CERT_FILE=%~dp0runtime\Lib\site-packages\certifi\cacert.pem"
+set "REQUESTS_CA_BUNDLE=%~dp0runtime\Lib\site-packages\certifi\cacert.pem"
+set "CURL_CA_BUNDLE=%~dp0runtime\Lib\site-packages\certifi\cacert.pem"
 set "PORT=5001"
 
 :: Abre o navegador padrao apos 2 segundos

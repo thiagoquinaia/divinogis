@@ -1,6 +1,7 @@
 import os
 import requests
 from flask import Flask, render_template, request, jsonify, send_file, abort
+from net_utils import safe_get
 import srtm_service
 
 app = Flask(__name__)
@@ -176,7 +177,7 @@ def search_location():
             'limit': 5,
             'addressdetails': 1
         }
-        resp = requests.get(url, params=params, headers=headers, timeout=5)
+        resp = safe_get(url, params=params, headers=headers, timeout=5)
         if resp.status_code == 200:
             return jsonify(resp.json())
         return jsonify([])

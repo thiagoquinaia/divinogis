@@ -3,6 +3,7 @@ import math
 import json
 import xml.etree.ElementTree as ET
 import requests
+from net_utils import safe_get
 import geopandas as gpd
 from shapely.geometry import shape
 
@@ -67,7 +68,7 @@ def get_municipality_names(uf_code_or_sigla):
 
     try:
         url = f"https://servicodados.ibge.gov.br/api/v1/localidades/estados/{uf_code_or_sigla}/municipios"
-        r = requests.get(url, timeout=10)
+        r = safe_get(url, timeout=10)
         if r.status_code == 200:
             mun_dict = {str(item['id']): item['nome'] for item in r.json()}
             with open(cache_path, 'w', encoding='utf-8') as f:
@@ -92,7 +93,7 @@ def get_mesorregiao_names():
     try:
         url = "https://servicodados.ibge.gov.br/api/v1/localidades/mesorregioes"
         headers = {'User-Agent': 'QGIS-Web-IBGE/1.0'}
-        r = requests.get(url, headers=headers, timeout=12)
+        r = safe_get(url, headers=headers, timeout=12)
         if r.status_code == 200:
             meso_dict = {}
             for item in r.json():
@@ -150,7 +151,7 @@ def fetch_ibge_mesh(mesh_type, uf_code=None):
     else:
         raise ValueError(f"Tipo de malha desconhecido: {mesh_type}")
 
-    resp = requests.get(url, headers=headers, timeout=35)
+    resp = safe_get(url, headers=headers, timeout=35)
     if resp.status_code != 200:
         raise RuntimeError(f"Erro ao consultar API do IBGE (HTTP {resp.status_code}): {url}")
 

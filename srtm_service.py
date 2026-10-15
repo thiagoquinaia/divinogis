@@ -15,7 +15,9 @@ except Exception:
     pass
 
 import rasterio
+import rasterio.features
 from rasterio.transform import from_origin
+from net_utils import safe_get
 import matplotlib.pyplot as plt
 from matplotlib.colors import LightSource, Normalize
 from PIL import Image
@@ -63,7 +65,7 @@ def load_or_fetch_tile(lat_floor, lon_floor):
     else:
         url = f"{SKADI_BASE_URL}/{folder}/{tile_name}.hgt.gz"
         try:
-            resp = requests.get(url, timeout=25)
+            resp = safe_get(url, timeout=25)
             if resp.status_code == 200:
                 with open(cached_path, 'wb') as f:
                     f.write(resp.content)
@@ -205,7 +207,6 @@ def fetch_srtm_dem(min_lat=None, min_lon=None, max_lat=None, max_lon=None, color
     # 3. Se houver geometria, aplica máscara poligonal exata
     if geom_obj is not None:
         try:
-            import rasterio.features
             # invert=True: True dentro da geometria, False fora
             polygon_mask = rasterio.features.geometry_mask(
                 [geom_obj],
