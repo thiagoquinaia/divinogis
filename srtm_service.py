@@ -7,12 +7,9 @@ import time
 import requests
 import numpy as np
 
-# Ensure PROJ data directory is set cleanly to avoid GDAL/PROJ version mismatch warnings
-try:
-    import pyproj
-    os.environ['PROJ_LIB'] = pyproj.datadir.get_data_dir()
-except Exception:
-    pass
+# Garante que variaveis globais de PROJ nao forcem versoes incompativeis de proj.db
+for _var in ('PROJ_LIB', 'PROJ_DATA', 'GDAL_DATA'):
+    os.environ.pop(_var, None)
 
 import rasterio
 import rasterio.features

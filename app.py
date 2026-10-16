@@ -1,4 +1,9 @@
 import os
+
+# Evita conflitos entre versoes de PROJ/GDAL dos pacotes (rasterio, pyproj, pyogrio)
+for _v in ('PROJ_LIB', 'PROJ_DATA', 'GDAL_DATA'):
+    os.environ.pop(_v, None)
+
 import requests
 from flask import Flask, render_template, request, jsonify, send_file, abort
 from net_utils import safe_get

@@ -66,6 +66,13 @@ def main():
     else:
         print("-> Runtime Python 3.11.9 Embeddable e bibliotecas Windows x64 existentes detectados. Reutilizando...")
 
+    # Sincroniza proj.db de versao mais recente (rasterio PROJ 9.6, layout minor 5) para o pyproj
+    rasterio_proj_db = SITE_PACKAGES_DIR / "rasterio" / "proj_data" / "proj.db"
+    pyproj_proj_db = SITE_PACKAGES_DIR / "pyproj" / "proj_dir" / "share" / "proj" / "proj.db"
+    if rasterio_proj_db.exists() and pyproj_proj_db.parent.exists():
+        print("-> Sincronizando proj.db (layout v5) do rasterio para o pyproj...")
+        shutil.copy2(rasterio_proj_db, pyproj_proj_db)
+
     # 4. Configura python311._pth para carregar site-packages e a raiz da aplicação
     pth_file = RUNTIME_DIR / "python311._pth"
     pth_content = (
@@ -122,11 +129,12 @@ echo.
 echo =====================================================================
 echo.
 
-:: Define caminhos de busca para PROJ, GDAL e Certificados SSL
+:: Limpa variaveis globais de PROJ e GDAL para evitar conflitos de versao entre rasterio e pyproj
+set "PROJ_LIB="
+set "PROJ_DATA="
+set "GDAL_DATA="
 set "PYTHONHOME=%~dp0runtime"
 set "PYTHONPATH=%~dp0;%~dp0runtime\Lib\site-packages"
-set "PROJ_LIB=%~dp0runtime\Lib\site-packages\pyproj\proj_dir\share\proj"
-set "GDAL_DATA=%~dp0runtime\Lib\site-packages\rasterio\gdal_data"
 set "SSL_CERT_FILE=%~dp0runtime\Lib\site-packages\certifi\cacert.pem"
 set "REQUESTS_CA_BUNDLE=%~dp0runtime\Lib\site-packages\certifi\cacert.pem"
 set "CURL_CA_BUNDLE=%~dp0runtime\Lib\site-packages\certifi\cacert.pem"
