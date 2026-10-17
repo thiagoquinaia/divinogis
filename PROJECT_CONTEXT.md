@@ -25,6 +25,13 @@ gerador_topo3d/ (divinogis)
 ├── ibge_service.py             # Integração com API v3 do IBGE, reprojeção e exportação GPKG/KML
 ├── run.sh                      # Shell script executável para inicialização rápida
 ├── requirements.txt            # Dependências Python rastreadas e versionadas
+├── run_tests.sh                # Script de execução rápida da suíte completa de testes
+├── tests/                      # Suíte de testes automatizados unitários e de integração
+│   ├── conftest.py             # Fixtures Pytest (cliente Flask, DEM sintético)
+│   ├── test_stl_service.py     # Testes de malha 3D manifold, estanqueidade e base 0mm
+│   ├── test_srtm_service.py    # Testes de quadrículas HGT, validações de limites e relevo
+│   ├── test_ibge_service.py    # Testes de malhas IBGE e exportações vetoriais (GPKG/KML)
+│   └── test_app_api.py         # Testes de integração de endpoints da API Flask
 ├── Dockerfile                  # Imagem Docker multi-stage com GDAL/GeoPandas
 ├── docker-compose.yml          # Subida automatizada de container com volumes persistentes
 ├── .dockerignore               # Exclusões para build de container
@@ -206,6 +213,16 @@ gerador_topo3d/ (divinogis)
   - `Encerrar_DivinoGIS.bat`: Finaliza o processo Python limpo sem deixar rastros no computador hospedeiro.
   - `COMO_USAR_NO_PENDRIVE.txt`: Manual didático de instruções passo a passo.
 
+### 3.11. Suíte de Testes Automatizados e Prevenção de Regressões
+- **Framework**: `pytest` com fixtures dedicadas em `tests/conftest.py`.
+- **Script Unificado de Validação**: `./run_tests.sh`
+- **Módulos Testados**:
+  - `tests/test_stl_service.py`: Validação matemática de solido 2-manifold fechado (watertight, 0 arestas abertas), teste de recorte por máscara NoData (perímetro do polígono com paredes verticais), teste de base 0.0 mm e teste de especificação binária STL (80 bytes cabeçalho + uint32 contagem + 50 bytes/triângulo).
+  - `tests/test_srtm_service.py`: Cálculo exato de quadrículas HGT Skadi (Norte, Sul, Leste, Oeste), validações de segurança contra limites excessivos (> 22°) ou invertidos, e amostragem altimétrica pontual.
+  - `tests/test_ibge_service.py`: Integridade da malha de 27 UFs brasileiras e exportação para GeoPackage, GeoJSON e KML.
+  - `tests/test_app_api.py`: Testes de integração dos endpoints REST do Flask (`/`, `/api/ibge/ufs`, `/api/export-stl`, `/api/elevation-grid`, `/api/preview`, etc.).
+- **Integração Contínua (CI)**: GitHub Actions configurado em `.github/workflows/ci.yml` rodando em push e PR para `main` e `development`.
+
 ---
 
 ## 🌐 4. Rotas da API REST (`app.py`)
@@ -247,9 +264,13 @@ gerador_topo3d/ (divinogis)
 
 Ao retomar ou continuar o desenvolvimento do DivinoGIS:
 - **Consulte este arquivo primeiro** para verificar como as funções e rotas existentes se comunicam.
+- **Regra de Ouro da Qualidade**: Sempre execute `./run_tests.sh` e garanta que **100% dos testes passem** antes de subir qualquer alteração para o GitHub ou propor merge na `main`.
 - **Mantenha a estética QGIS 3**: botões pequenos e compactos, paleta clássica cinza/azul/verde, toolbars modulares e bordas sutis.
 - **Preserve o suporte a janelas arrastáveis**: se um novo modal for criado, utilize a classe `.qgis-modal-backdrop` e `.qgis-dialog` com `.dialog-titlebar`.
-- **Commits e Branches**: A branch padrão oficial do repositório é `main`.
+- **Commits e Branches**: 
+  - Todo trabalho ativo ocorre na branch **`development`**.
+  - A branch **`main`** só recebe alterações aprovadas pelo usuário após validação dos testes.
 
 ---
-*Documento gerado em 14 de Outubro de 2026 para o projeto DivinoGIS.*
+*Documento atualizado em 17 de Outubro de 2026 para o projeto DivinoGIS.*
+

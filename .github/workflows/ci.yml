@@ -2,13 +2,13 @@ name: CI - Integridade e Qualidade de Código
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "main", "development" ]
   pull_request:
-    branches: [ "main" ]
+    branches: [ "main", "development" ]
 
 jobs:
   validate:
-    name: Validação de Sintaxe e Dependências
+    name: Validação de Sintaxe, Testes e Dependências
     runs-on: ubuntu-latest
 
     steps:
@@ -27,7 +27,7 @@ jobs:
 
       - name: Validar Sintaxe dos Arquivos Python
         run: |
-          python3 -m py_compile app.py srtm_service.py stl_service.py ibge_service.py
+          python3 -m py_compile app.py srtm_service.py stl_service.py ibge_service.py net_utils.py
           echo "✓ Todos os scripts Python compilaram sem erros de sintaxe!"
 
       - name: Validar Sintaxe do JavaScript Cliente
@@ -35,8 +35,13 @@ jobs:
           node -c static/js/app.js
           echo "✓ Script JavaScript validado com sucesso!"
 
-      - name: Instalação e Teste das Dependências
+      - name: Instalação das Dependências
         run: |
           pip install --upgrade pip
           pip install -r requirements.txt
           python3 -c "import flask, rasterio, geopandas, shapely, scipy, matplotlib, PIL, pyproj; print('✓ Todas as bibliotecas geospaciais foram importadas com sucesso!')"
+
+      - name: Executar Suíte de Testes Automatizados (pytest)
+        run: |
+          pytest tests/ -v --tb=short
+          echo "✓ Todos os 17 testes automatizados passaram com sucesso!"
