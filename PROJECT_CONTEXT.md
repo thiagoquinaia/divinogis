@@ -7,7 +7,9 @@
 ## 📌 1. Visão Geral do Sistema
 
 - **Nome Oficial**: **DivinoGIS**
-- **Repositório GitHub**: `https://github.com/thiagoquinaia/divinogis` (Público, branch `main`)
+- **Repositório GitHub**: `https://github.com/thiagoquinaia/divinogis` (Público)
+  - `main`: Branch de produção estável e releases oficiais.
+  - `development`: Branch de desenvolvimento ativo e testes. Todo código novo é desenvolvido e testado aqui antes de ser aprovado pelo usuário para merge na `main`.
 - **Proposta**: Sistema Web SIG Desktop completo, com layout e usabilidade inspirados no **QGIS Desktop 3.34 'Prizren'**, operando localmente via navegador (`http://localhost:5001`) ou via container Docker.
 - **Porta padrão**: `5001` (para evitar conflito com AirPlay/Control Center do macOS na porta 5000).
 
