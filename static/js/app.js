@@ -1374,9 +1374,9 @@ function atualizarExageroSTL(val) {
 function atualizarSuavizacaoSTL(val) {
   const num = parseFloat(val);
   const labels = {
-    "0.0": "0.0 (Nenhuma / Raw)",
+    "0.0": "0.0 (Topografia Pura / Sem Suavização - Padrão)",
     "0.5": "0.5 (Muito Leve)",
-    "1.0": "1.0 (Leve - Recomendado)",
+    "1.0": "1.0 (Leve)",
     "1.5": "1.5 (Suave)",
     "2.0": "2.0 (Média)",
     "2.5": "2.5 (Acentuada)",
@@ -1386,10 +1386,25 @@ function atualizarSuavizacaoSTL(val) {
   document.getElementById('stl-smooth-val').innerText = label;
 }
 
+function atualizarResolucaoSTL() {
+  const sel = document.getElementById('stl-res-select');
+  if (!sel) return;
+  const val = parseInt(sel.value) || 1000;
+  const labels = {
+    1400: "Ultra (~0.15mm - Máximo Detalhe)",
+    1000: "Alta (~0.2mm - Padrão DEMto3D)",
+    600: "Média (~0.4mm - Mais Leve)",
+    300: "Rápida (~0.8mm - Prévia)"
+  };
+  const el = document.getElementById('stl-res-val');
+  if (el) el.innerText = labels[val] || `${val} pts`;
+}
+
 function atualizarCalculosSTL() {
   const scaleDenom = parseFloat(document.getElementById('stl-scale-input').value) || 50000;
   const verticalExag = parseFloat(document.getElementById('stl-exag-range').value) || 2.0;
-  const baseMm = parseFloat(document.getElementById('stl-base-input').value) || 2.5;
+  const rawBase = parseFloat(document.getElementById('stl-base-input').value);
+  const baseMm = isNaN(rawBase) ? 0.0 : Math.max(0.0, rawBase);
 
   document.getElementById('stl-exag-val').innerText = `${verticalExag.toFixed(1)}x`;
 
@@ -1417,8 +1432,11 @@ async function executarExportacaoSTL() {
   const statusMsg = document.getElementById('stl-status-msg');
   const scaleDenom = parseFloat(document.getElementById('stl-scale-input').value) || 50000;
   const verticalExag = parseFloat(document.getElementById('stl-exag-range').value) || 2.0;
-  const baseMm = parseFloat(document.getElementById('stl-base-input').value) || 2.5;
-  const smoothingLevel = parseFloat(document.getElementById('stl-smooth-range').value) || 1.0;
+  const rawBase = parseFloat(document.getElementById('stl-base-input').value);
+  const baseMm = isNaN(rawBase) ? 0.0 : Math.max(0.0, rawBase);
+  const rawSmooth = parseFloat(document.getElementById('stl-smooth-range').value);
+  const smoothingLevel = isNaN(rawSmooth) ? 0.0 : Math.max(0.0, rawSmooth);
+  const maxGrid = parseInt(document.getElementById('stl-res-select').value) || 1000;
 
   btn.disabled = true;
   btn.innerHTML = `<span style="display:inline-block; animation:spin 1s infinite linear;">⚙️</span> Gerando STL...`;
@@ -1432,7 +1450,8 @@ async function executarExportacaoSTL() {
       scale_denom: scaleDenom,
       vertical_exag: verticalExag,
       base_thickness_mm: baseMm,
-      smoothing_level: smoothingLevel
+      smoothing_level: smoothingLevel,
+      max_grid: maxGrid
     };
 
     const resp = await fetch('/api/export-stl', {

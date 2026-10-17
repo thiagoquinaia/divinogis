@@ -75,19 +75,23 @@ gerador_topo3d/ (divinogis)
 - **Objetivo**: Transformar o GeoTIFF de elevação em um arquivo **`.stl` sólido, fechado (watertight) e manifold**, pronto para fatiadores como Cura, PrusaSlicer e Bambu Studio.
 - **Parametrizações**:
   - **Escala Cartográfica**: Pré-definições (1:10k, 1:25k, 1:50k, 1:100k, 1:250k) ou escala livre, com atalhos para adequar a mesas de 100 mm, 150 mm, 200 mm ou 250 mm.
-  - **Exagero Vertical**: Multiplicador de 1.0x a 5.0x (ou mais) com cálculo instantâneo da cota Z em milímetros.
-  - **Espessura da Base**: Base sólida plana (padrão 2.5 mm) para garantir adesão perfeita na mesa da impressora.
-  - **Suavização Gaussiana**: Filtro `scipy.ndimage.gaussian_filter` ajustável (0.0 a 3.0) para remover o efeito de escada (*stepping*) nativo de dados discretos de satélite.
+  - **Exagero Vertical**: Multiplicador de 1.0x a 8.0x com cálculo instantâneo da cota Z em milímetros.
+  - **Espessura da Base**: Base sólida plana ajustável a partir de **`0.0 mm`** (0 mm permite que o ponto mais baixo do relevo repouse diretamente nivelado na mesa de impressão a Z=0, sem placa extra).
+  - **Resolução da Malha 3D (Qualidade / Densidade de Triângulos)**:
+    - *Alta Definição* (`max_grid=1000` / ~0.2mm - Padrão DEMto3D QGIS / 1.5M a 3M triângulos).
+    - *Ultra Definição* (`max_grid=1400` / ~0.15mm - Máximo Detalhe / 3M a 4.5M triângulos).
+    - *Média* (`max_grid=600` / ~0.4mm) e *Rápida* (`max_grid=300` / ~0.8mm).
+  - **Topografia Pura / Sem Suavização**: Padrão em `smoothing_level = 0.0` para manter 100% da nitidez de cristas, desníveis e vales reais, com opção de suavização gaussiana caso desejado.
   - **Cálculo em Tempo Real no Cliente**: A interface recalcula instantaneamente no navegador:
     $$\text{Largura (X mm)} = \frac{\text{Distância Real X (m)} \times 1000}{\text{Denominador da Escala}}$$
     $$\text{Comprimento (Y mm)} = \frac{\text{Distância Real Y (m)} \times 1000}{\text{Denominador da Escala}}$$
     $$\text{Relevo Z (mm)} = \left(\frac{\Delta Z \text{ Real (m)} \times 1000}{\text{Denominador da Escala}}\right) \times \text{Exagero Vertical}$$
     $$\text{Altura Total Z (mm)} = \text{Base Sólida (mm)} + \text{Relevo Z (mm)}$$
-- **Geração da Geometria STL**:
-  - Superfície superior: grelha de triângulos calculada a partir do raster suavizado.
-  - Fundo plano: vértices invertidos na cota zero.
-  - Quatro paredes laterais verticais: triangulação de fechamento que une as bordas do relevo à base plana.
-  - Normais de triângulos calculadas via produto vetorial e exportação em formato STL binário de alta performance.
+- **Geração da Geometria STL Watertight (Retangular ou Recorte de Polígono)**:
+  - Superfície superior: grelha de triângulos calculada a partir do relevo válido.
+  - Fundo plano: grelha de triângulos espelhada na cota base (`base_z = 0.0`).
+  - **Paredes Perimetrais Dinâmicas (Polygon Cutline)**: Para camadas recortadas por feição vetorial (com NoData externo), descarta o vazio externo e ergue paredes verticais contornando o perímetro exato do polígono da mesorregião/município, gerando um sólido 3D recortado idêntico ao DEMto3D sem placa quadrada externa.
+  - **Streaming Binário em Blocos**: Gravação em chunks de 100.000 facetas, mantendo consumo de memória RAM ultrabaixo mesmo para modelos com mais de 3 milhões de triângulos.
 
 ### 3.3. Visualizador 3D Interativo (Three.js WebGL)
 - Modal com canvas Three.js e `OrbitControls`.

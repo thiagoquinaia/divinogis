@@ -223,15 +223,17 @@ def export_stl():
 
         scale_denom = float(data.get('scale_denom', 50000.0))
         vertical_exag = float(data.get('vertical_exag', 2.0))
-        base_thickness_mm = float(data.get('base_thickness_mm', 3.0))
-        smoothing_level = float(data.get('smoothing_level', 1.0))
+        base_thickness_mm = float(data.get('base_thickness_mm', 0.0))
+        smoothing_level = float(data.get('smoothing_level', 0.0))
+        max_grid = int(data.get('max_grid', 1000))
 
         stl_bytes, meta = stl_service.generate_stl_from_geotiff(
             tif_path=tif_path,
             scale_denom=scale_denom,
             vertical_exag=vertical_exag,
             base_thickness_mm=base_thickness_mm,
-            smoothing_level=smoothing_level
+            smoothing_level=smoothing_level,
+            max_grid=max_grid
         )
 
         stl_filename = f"{layer_id}_1_{int(scale_denom)}_exag{vertical_exag}x.stl"
